@@ -3,14 +3,16 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+embed_dim = 128
+num_rep = 8
 dis_filter_sizes = [2, 3, 4, 5]
 dis_num_filters = [300, 300, 300, 300]
 
 
 class RelGAN_D(nn.Module):
-    def __init__(self, embed_dim, max_seq_len, num_rep, vocab_size, padding_idx, dropout=0.25):
+    def __init__(self, vocab_size, dropout=0.25):
+        super().__init__()
         self.embed_dim = embed_dim
-        self.max_seq_len = max_seq_len
         self.feature_dim = sum(dis_num_filters)
         self.emb_dim_single = int(embed_dim / num_rep)
 

@@ -4,24 +4,20 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import LambdaLR
 
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
-from model.albert import AlbertTeacher
-from model.generator import RNNSearch
+from model.seq2seq import RNNSearch
 from model.classifier import TextCNN
+from model.match import Matcher
+from model.bilm import BiLM
+from model.discriminator import RelGAN_D
 
-from vocab import Wrapped_ALBERT_Vocab
-from loader import StyleDataset, load_s2l, collate_s2s_noise 
-from data_util import from_output_to_input
-from main_warmup import CoarseTransfer
-from main_albert_ft import AlbertTuner
-
-from transformers import AlbertConfig
+from vocab import BPETokenizer
+from loader import StyleDataset, load_s2l, collate_optimize 
 
 STAGE = "optimize"
 
@@ -29,16 +25,18 @@ class GenerationTuner(pl.LightningModule):
     def __init__(self, args):
         super(GenerationTuner, self).__init__()
 
-        self.args = args
         self.hparams = args
 
-        self.vocab = Wrapped_ALBERT_Vocab(args.dump_dir)
-
+        self.vocab = BPETokenizer.load(f"{args.dump_dir}/{args.dataset}/{args.dataset}-vocab.json",
+                                       f"{args.dump_dir}/{args.dataset}/{args.dataset}-merges.txt")
         # construct new models
-        self.generator = RNNSearch(args.n_vocab, args.d_embed, args.d_enc_hidden, args.d_dec_hidden, 
+        self.classifier = TextCNN(len(self.vocab), n_class=2)
+        self.matcher = Matcher(len(self.vocab))
+        self.lm = BiLM(len(self.vocab), n_class=2)
+
+        self.generator = RNNSearch(len(self.vocab), args.d_embed, args.d_enc_hidden, args.d_dec_hidden,
                                    args.n_enc_layer, args.n_dec_layer, args.n_class, args.p_drop, args.max_len)
-        self.albert = AlbertTeacher(AlbertConfig.from_pretrained(args.dump_dir))
-        self.classifier = TextCNN(args.n_vocab)
+        self.disc = RelGAN_D()
         
         # reload pretrained models
         pretrained_generator = CoarseTransfer.load_from_checkpoint(args.gen_dump_dir)
