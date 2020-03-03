@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-d_model = 512
+d_model = 256
 n_head = 8
-n_layer = 4
+n_layer = 6
 
 class BiLM(nn.Module):
     def __init__(self, n_vocab, n_class):
