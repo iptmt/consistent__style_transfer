@@ -1,6 +1,5 @@
 import os
 import copy
-import nltk
 import torch
 import random
 

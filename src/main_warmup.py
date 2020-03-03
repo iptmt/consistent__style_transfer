@@ -10,10 +10,10 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
-from model.generator import RNNSearch
+from model.seq2seq import RNNSearch
 
-from vocab import Wrapped_ALBERT_Vocab
-from loader import StyleDataset, load_s2l, collate_s2s_noise
+from vocab import BPETokenizer
+from loader import StyleDataset, load_s2l, collate_optimize 
 
 STAGE = "warmup"
 

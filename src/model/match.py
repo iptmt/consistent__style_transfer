@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-d_model = 256
+d_model = 512
 n_head = 8
 n_layer = 6
 
