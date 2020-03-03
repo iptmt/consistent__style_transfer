@@ -1,7 +1,8 @@
 #!/bin/bash
 
 dataset=$1
-basedir=/code/qwh/model_agnostic_ST # default .
+# basedir=/code/qwh/model_agnostic_ST # default .
+basedir=.
 
 # prepare working directories
 for dir in "$basedir"/data "$basedir"/dump "$basedir"/output "$basedir"/log
