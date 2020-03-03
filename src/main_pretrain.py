@@ -141,7 +141,7 @@ if __name__ == "__main__":
     args = fetch_args()
 
     if args.dataset == "yelp":
-        args.batch_size = 18
+        args.batch_size = 256
         args.epochs = 10
     else:
         raise ValueError

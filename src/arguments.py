@@ -1,8 +1,8 @@
 import argparse
 import torch
 
-# base_dir = "/code/qwh/model_agnostic_ST"
-base_dir = ".."
+base_dir = "/code/qwh/model_agnostic_ST"
+# base_dir = ".."
 
 def fetch_args():
     parser = argparse.ArgumentParser(description="Parameters")
@@ -37,7 +37,7 @@ def fetch_args():
     # parser.add_argument('--batch_size', type=int, default=200, help="batch size of sentences for each iteration")
     # parser.add_argument('--lr', type=float, default=1e-4, help="initial learning rate")
 
-    parser.add_argument('--device', type=str, default=0, help="on all GPUs")
+    parser.add_argument('--device', type=str, default="0", help="on all GPUs")
     parser.add_argument('--restore_version', type=int, default=-1, help="version for restore trainer and it's state")
     
     args = parser.parse_args()
