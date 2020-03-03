@@ -1,0 +1,40 @@
+apiVersion: batch.volcano.sh/v1alpha1
+kind: Job
+metadata:
+  name: utst                #（1）修改成自己job的名字，作业名不能重复
+spec:
+  minAvailable: 1
+  schedulerName: volcano
+  policies:
+    - event: PodEvicted
+      action: RestartJob
+  plugins:
+    ssh: []
+    env: []
+    svc: []
+  maxRetry: 0
+  queue: default
+  tasks:
+    - replicas: 1
+      name: "yelp"            #（2）任务名称
+      template:
+        metadata:
+          name: pytorch-gpu-job
+        spec:
+          containers:
+            - name: pytorch-gpu-job
+              image: registry.cn-zhangjiakou.aliyuncs.com/iie-lct/qwh-dev:0.5
+              command: ["bash","/code/qwh/model_agnostic_ST/run.sh", "yelp", "v0"]    # (3)将pytorch.py替换成自己的文件
+              resources:
+                limits:
+                  nvidia.com/gpu: "1"        # (4) 使用的GPU数量，requests和limits保持一致，目前只支持1个GPU
+                requests:
+                  nvidia.com/gpu: "1"
+              volumeMounts:
+              - name: pvc-aijob                 # 目前只支持这个pvc，不要修改。
+                mountPath: "/code"           
+          volumes:
+            - name: pvc-aijob
+              persistentVolumeClaim:
+                claimName: pvc-aijob
+          restartPolicy: OnFailure
