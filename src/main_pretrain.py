@@ -137,6 +137,7 @@ def construct_trainer(args):
 
 
 if __name__ == "__main__":
+    # python main_pretrain.py --dataset=[dataset] --model_version=[version]
     from arguments import fetch_args
     args = fetch_args()
 
