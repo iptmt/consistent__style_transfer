@@ -1,8 +1,8 @@
 import argparse
 import torch
 
-base_dir = "/code/qwh/model_agnostic_ST"
-# base_dir = ".."
+# base_dir = "/code/qwh/model_agnostic_ST"
+base_dir = ".."
 
 def fetch_args():
     parser = argparse.ArgumentParser(description="Parameters")
