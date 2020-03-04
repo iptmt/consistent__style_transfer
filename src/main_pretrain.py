@@ -100,6 +100,10 @@ class PretrainModel(pl.LightningModule):
                     self.best_eval[name] = loss
                     torch.save(self.named_models[name].state_dict(), f"{self.hparams.task_dump_dir}/{name}.pth")
         val_loss = sum(list(self.best_eval.values()))
+        print(f"CLS: {self.flags['cls']}-{self.best_eval['cls']}\n" + \
+              f"MAT: {self.flags['mat']}-{self.best_eval['mat']}\n" + \
+              f"LM: {self.flags['lm']}-{self.best_eval['lm']}\n" +\
+              f"val_loss: {val_loss}")
         return {
             "progress_bar": {"val_loss": val_loss},
             "log": {"val_loss": val_loss}

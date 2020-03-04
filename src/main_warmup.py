@@ -110,6 +110,6 @@ if __name__ == "__main__":
     args.task_dump_dir = f"{args.dump_dir}/{args.dataset}/{STAGE}"
     args.log_dir = f"{args.log_dir}/{args.dataset}"
 
-    model = CoarseTransfer(args)
+    model = WarmupModel(args)
     trainer = construct_trainer(args)
     trainer.fit(model)
