@@ -39,9 +39,9 @@ class GenerationTuner(pl.LightningModule):
         self.disc = RelGAN_D(len(self.vocab))
         
         # reload pretrained models
-        self.classifier.load_state_dict(torch.load(f"{args.dump_dir}/pretrain/cls.pth"))
-        self.matcher.load_state_dict(torch.load(f"{args.dump_dir}/pretrain/mat.pth"))
-        self.lm.load_state_dict(torch.load(f"{args.dump_dir}/pretrain/lm.pth"))
+        self.classifier.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/cls.pth"))
+        self.matcher.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/mat.pth"))
+        self.lm.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/lm.pth"))
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
