@@ -36,158 +36,155 @@ class GenerationTuner(pl.LightningModule):
 
         self.generator = RNNSearch(len(self.vocab), args.d_embed, args.d_enc_hidden, args.d_dec_hidden,
                                    args.n_enc_layer, args.n_dec_layer, args.n_class, args.p_drop, args.max_len)
-        self.disc = RelGAN_D()
+        self.disc = RelGAN_D(len(self.vocab))
         
         # reload pretrained models
-        pretrained_generator = CoarseTransfer.load_from_checkpoint(args.gen_dump_dir)
-        pretrained_albert = AlbertTuner.load_from_checkpoint(args.albert_dump_dir)
-
-        # weight initialization
-        self.generator.load_state_dict(pretrained_generator.generator.state_dict())
-        self.albert.load_state_dict(pretrained_albert.albert.state_dict())
-        self.classifier.load_state_dict(pretrained_albert.classifier.state_dict())
+        self.classifier.load_state_dict(torch.load(f"{args.dump_dir}/pretrain/cls.pth"))
+        self.matcher.load_state_dict(torch.load(f"{args.dump_dir}/pretrain/mat.pth"))
+        self.lm.load_state_dict(torch.load(f"{args.dump_dir}/pretrain/lm.pth"))
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
-        self.ce_crit = nn.CrossEntropyLoss(ignore_index=-1)
-        self.softmax = nn.Softmax(dim=-1)
+        self.bce_crit = nn.BCELoss()
+        self.ce_crit = nn.CrossEntropyLoss()
+        self.mse_crit = nn.MSELoss()
         
         self.tau = args.tau
-        self.mle = args.mle
-        self.hard = args.hard
+        self.sigmoid = nn.Sigmoid()
 
         n_batch = math.ceil(self.args.n_samples / self.args.batch_size)
         self.anneal_steps = self.args.epochs * n_batch
     
-    def forward(self, nx, labels, x, len_x, max_len, tau):
-        # denoise
-        dn_logits, _ = self.generator(nx, labels, x, max_len, tau, self.mle, self.hard)
-
-        # transfer
-        _, sample_p = self.generator(x, 1 - labels, None, None, tau, self.mle, self.hard)
-
-        padded_scaled_logits, trunc_len, complement_input, input_mask, attn_mask, segments, complement_output, output_mask = \
-            from_output_to_input(sample_p, x, len_x, len(self.vocab))
-
-        sample_p = sample_p[:, :trunc_len, :]
-        tsf_tokens = sample_p.argmax(-1)
-
-        # optimize
-        input_mask = input_mask.unsqueeze(-1)
-        inputs = input_mask * complement_input + (1 - input_mask) * padded_scaled_logits
-
-        c_logits, mlm_logits = self.albert(inputs, attention_mask=attn_mask, token_type_ids=segments, labels=1-labels)
-
-        output_mask = output_mask.unsqueeze(-1)
-        mlm_labels = complement_output * output_mask + sample_p * (1 - output_mask)
-        s_logits = self.classifier(mlm_labels)
-
-        mlm_logits = complement_output * output_mask + mlm_logits[:, 1: 1 + trunc_len, :] * (1 - output_mask)
-
-        # back translate
-        bt_logits, _ = self.generator(tsf_tokens, labels, x, max_len, tau, self.mle, self.hard)
-
-        return (
-            (dn_logits, x), (bt_logits, x), (s_logits, 1 - labels), (c_logits, None), (mlm_logits, mlm_labels, 1 - output_mask)
-        )
+    def forward(self, x, labels, tau, optimizer_idx):
+        # optimize D
+        if optimizer_idx == 0:
+            with torch.no_grad():
+                _, sample_p = self.generator(x, labels, None, None, gumbel=True, tau=tau)
+            t_logits = self.disc(F.one_hot(x, len(self.vocab)).float())
+            f_logits = self.disc(sample_p.detach())
+            return t_logits, f_logits
+        elif optimizer_idx == 1:
+            _, sample_p = self.generator(x, labels, None, None, gumbel=True, tau=tau)
+            return sample_p
  
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.generator.parameters(), lr=self.args.lr)
-        scheduler = LambdaLR(optimizer, lambda epoch: 1.0 ** epoch)
-        return [optimizer], [scheduler]
-
-    # s -> student; P_t -> teacher distribution
-    def cal_soft_ce_loss(self, s, P_t, mask):
-        return -(P_t * F.log_softmax(s, dim=-1) * mask).sum(-1).mean()
+        optimizer_dsc = torch.optim.Adam(self.disc.parameters(), lr=1e-4)
+        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
+        return optimizer_dsc, optimizer_gen
     
+    def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, second_order_closure=None):
+        # update generator opt every 1 steps
+        if optimizer_idx == 0:
+            optimizer.step()
+            optimizer.zero_grad()
+        # update discriminator opt every 5 steps
+        if optimizer_idx == 1:
+            if batch_idx % 5 == 0 :
+                optimizer.step()
+                optimizer.zero_grad()
+
     def get_current_w(self):
         p = self.global_step / self.anneal_steps
         w = min([p, 1.0])
         tau = self.tau ** p
-        return self.tau, w
+        return tau, w
 
-    def training_step(self, batch, batch_idx):
-        
+    def training_step(self, batch, batch_idx, optimizer_idx):
+        x, labels = batch
         tau, w = self.get_current_w()
-
-        nx, _, x, len_x, labels = batch
-
-        ((dn_logits, lb_dn), (bt_logits, lb_bt), (s_logits, lb_s), (c_logits, _), (mlm_logits, lb_lm, mask)) = self(nx, labels, x, len_x, x.size(1), tau)
+        # optimize discriminator
+        if optimizer_idx == 0:
+            t_logits, f_logits = self.forward(x, 1 - labels, tau, optimizer_idx)
+            t_labels, f_labels = x.new_ones([t_logits.size(0)]), x.new_zeros([f_logits.size(0)])
+            d_loss = 0.5 * (self.bce_crit(self.sigmoid(t_logits), t_labels) + \
+                            self.bce_crit(self.sigmoid(f_logits), f_labels))
+            loginfo = {"d_loss": d_loss}
+            return {"loss": d_loss, "progress_bar": loginfo, "log": loginfo}
         
-        dn_loss = self.ce_crit(dn_logits.reshape(-1, dn_logits.size(-1)), lb_dn.reshape(-1))
-        bt_loss = self.ce_crit(bt_logits.reshape(-1, bt_logits.size(-1)), lb_bt.reshape(-1))
-        s_loss = self.ce_crit(s_logits, lb_s)
-        c_loss = ((1 - c_logits) ** 2).mean()
-        mlm_loss = self.cal_soft_ce_loss(mlm_logits, lb_lm, mask)
+        # optimize generator
+        if optimizer_idx == 1:
+            sample_p = self.forward(x, 1 - labels, tau, optimizer_idx)
+            g_logits = self.disc(sample_p)
+            g_labels = x.new_ones([g_logits.size(0)])
+            g_loss = self.bce_crit(self.sigmoid(g_logits), g_labels)
 
-        w_c, w_mlm, w_s = self.args.alpha, self.args.beta, self.args.gamma
+            s_logits = self.classifier(sample_p)
+            c_logits = self.matcher(sample_p, x) 
+            l_logits = self.lm(sample_p)
 
-        return {
-            'loss': bt_loss + dn_loss + w * (w_c * c_loss + w_mlm * mlm_loss + w_s * s_loss),
-            'progress_bar': {"s": s_loss, "c": (1 - c_logits).mean(), "mlm": mlm_loss, "tau": tau},
-            'log': {'L_dn': dn_loss, 'L_bt': bt_loss, "L_s": s_loss, "L_c": c_loss, "L_mlm": mlm_loss, "w": w, "tau": tau}
-        }
-    
+            s_loss = self.ce_crit(s_logits, 1 - labels)
+            c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], 0.))
+            l_loss = self.ce_crit(l_logits.reshape(-1, l_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
+
+            loss = g_loss + w * (self.hparams.alpha * s_loss + self.hparams.beta * c_loss + self.hparams.gamma * l_loss)
+            loginfo = {"g_loss": g_loss, "L_s": s_loss, "L_c": c_loss, "L_l": l_loss}
+            return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
+ 
     def validation_step(self, batch, batch_idx):
-        nx, _, x, len_x, labels = batch
-        ((_, _), (_, _), (s_logits, lb_s), (c_logits, _), (mlm_logits, lb_lm, mask)) = self(nx, labels, x, len_x, x.size(1), self.tau)
-        
-        s_loss = self.ce_crit(s_logits, lb_s)
-        c_loss = (1 - c_logits).mean()
-        mlm_loss = self.cal_soft_ce_loss(mlm_logits, lb_lm, mask)
+        x, labels = batch
 
-        return {
-            "L_s": s_loss.item(), "L_c": c_loss.item(), "L_mlm": mlm_loss.item()
-        }
+        sample_p = self.forward(x, 1 - labels, 0.01, 1) # make sample_p close to one_hot
+
+        s_logits = self.classifier(sample_p)
+        c_logits = self.matcher(sample_p, x) 
+        l_logits = self.lm(sample_p)
+
+        s_loss = self.ce_crit(s_logits, 1 - labels)
+        c_loss = c_logits.mea()
+        l_loss = self.ce_crit(l_logits.reshape(-1, l_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
+
+        return {"loss": s_loss.item() + c_loss.item() + l_loss.item()}
+        
  
     def validation_end(self, outputs):
-        val_loss = sum([output['L_s'] + output["L_c"] + output["L_mlm"] for output in outputs]) / len(outputs)
+        val_loss = sum([output["loss"] for output in outputs]) / len(outputs)
         return {
             "progress_bar": {"val_loss": val_loss},
             "log": {"val_loss": val_loss}
         }
     
     def test_step(self, batch, batch_idx):
-        _, _, x, _, labels = batch
-        _, sample_p = self.generator(x, 1 - labels, None, None, mle=True)
+        x, labels = batch
+        logits, _ = self.generator(x, labels, None, None, gumbel=False, tau=0.01)
         return {
             "ori": x.cpu().numpy().tolist(),
-            "tsf": sample_p.argmax(-1).cpu().numpy().tolist(),
+            "tsf": logits.argmax(-1).cpu().numpy().tolist(),
             "label": labels.cpu().numpy().tolist()
         }
     
     def test_end(self, outputs):
-        print(f"Writing outputs to {self.args.out_dir}/")
-        with open(f"{self.args.out_dir}/style.{args.test_file}.0.tsf", 'w+', encoding='utf-8') as f_0:
-            with open(f"{self.args.out_dir}/style.{args.test_file}.1.tsf", 'w+', encoding='utf-8') as f_1:
+        print(f"Writing outputs to {self.hparams.out_dir}/")
+        with open(f"{self.hparams.out_dir}/style.{self.hparams.test_file}.0.tsf", 'w+', encoding='utf-8') as f_0:
+            with open(f"{self.hparams.out_dir}/style.{self.hparams.test_file}.1.tsf", 'w+', encoding='utf-8') as f_1:
                 for output in outputs:
                     for _, tsf, label in zip(output["ori"], output["tsf"], output["label"]):
                         f = f_0 if label == 0 else f_1
-                        f.write(self.vocab.IdsToSent(tsf) + "\n")
+                        f.write(self.vocab.decode(tsf) + "\n")
         return {}
 
     @pl.data_loader
     def train_dataloader(self):
         dataset = StyleDataset([f"{self.data_dir}/style.train.0", f"{self.data_dir}/style.train.1"], self.vocab,
-                                max_len=self.args.max_len, load_func=load_s2l)
-        data_loader = DataLoader(dataset, batch_size=self.args.batch_size, shuffle=True, 
-                                num_workers=self.args.n_workers, collate_fn=collate_s2s_noise)
+                                max_len=self.hparams.max_len, load_func=load_s2l)
+        data_loader = DataLoader(dataset, batch_size=self.hparams.batch_size, shuffle=True, 
+                                 collate_fn=collate_optimize)
         return data_loader
     
     @pl.data_loader
     def val_dataloader(self):
         dataset = StyleDataset([f"{self.data_dir}/style.dev.0", f"{self.data_dir}/style.dev.1"], self.vocab, 
-                                max_len=self.args.max_len, load_func=load_s2l)
-        data_loader = DataLoader(dataset, batch_size=self.args.batch_size, shuffle=False,
-                                num_workers=self.args.n_workers, collate_fn=collate_s2s_noise)
+                                max_len=self.hparams.max_len, load_func=load_s2l)
+        data_loader = DataLoader(dataset, batch_size=self.hparams.batch_size, shuffle=False,
+                                 collate_fn=collate_optimize)
         return data_loader
     
     @pl.data_loader
     def test_dataloader(self):
-        dataset = StyleDataset([f"{self.data_dir}/style.{args.test_file}.0", f"{self.data_dir}/style.{args.test_file}.1"], self.vocab, 
-                                max_len=self.args.max_len, load_func=load_s2l)
-        data_loader = DataLoader(dataset, batch_size=self.args.batch_size, shuffle=False, 
-                                num_workers=self.args.n_workers, collate_fn=collate_s2s_noise)
+        dataset = StyleDataset([f"{self.data_dir}/style.{self.hparams.test_file}.0", 
+                                f"{self.data_dir}/style.{self.hparams.test_file}.1"], self.vocab, 
+                                max_len=self.hparams.max_len, load_func=load_s2l)
+        data_loader = DataLoader(dataset, batch_size=self.hparams.batch_size, shuffle=False, 
+                                 collate_fn=collate_optimize)
         return data_loader
 
 def construct_trainer(args):
@@ -205,7 +202,7 @@ def construct_trainer(args):
                                patience=2,
                                mode="min")
     trainer = Trainer(logger=logger,
-                      gradient_clip_val=0.5,
+                      gradient_clip_val=1.0,
                       checkpoint_callback=checkpoint,
                       early_stop_callback=early_stop,
                       max_epochs=args.epochs,
@@ -220,22 +217,9 @@ if __name__ == "__main__":
 
     if args.dataset == "yelp":
         args.epochs = 10
-        args.batch_size = 100
-    elif args.dataset == "gyafc":
-        args.epochs = 10
-        args.batch_size = 50
+        args.batch_size = 200
     else:
         raise ValueError
-
-    # load generator
-    dirs = os.listdir(f"{args.dump_dir}/{args.dataset}/warmup")
-    dirs.sort()
-    args.gen_dump_dir = f"{args.dump_dir}/{args.dataset}/warmup/{dirs[-1]}"
-
-    # load albert
-    dirs = os.listdir(f"{args.dump_dir}/{args.dataset}/albert")
-    dirs.sort()
-    args.albert_dump_dir = f"{args.dump_dir}/{args.dataset}/albert/{dirs[-1]}"
 
     # dump dir
     if not os.path.exists(f"{args.dump_dir}/{args.dataset}/{STAGE}-{args.model_version}"):
@@ -258,9 +242,9 @@ if __name__ == "__main__":
         import warnings
         warnings.filterwarnings("ignore")
 
-        for test_file in ("train", "test"):
+        for transfer_file in ("train", "test"):
             # special parameter
-            args.test_file = test_file
+            args.test_file = transfer_file
             # special parameter
             model = GenerationTuner(args)
 
@@ -270,6 +254,5 @@ if __name__ == "__main__":
                 args.tsf_dump_dir = f"{args.task_dump_dir}/{dirs[-1]}"
                 pretrain_model = GenerationTuner.load_from_checkpoint(args.tsf_dump_dir)
                 model.load_state_dict(pretrain_model.state_dict())
-            model.args = args
             trainer = construct_trainer(args)
             trainer.test(model)

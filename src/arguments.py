@@ -30,8 +30,7 @@ def fetch_args():
     parser.add_argument('--beta', type=float, default=0.1, help="weight of NT")
     parser.add_argument('--gamma', type=float, default=0.1, help="weight of STI")
 
-    parser.add_argument('--tau', type=float, default=0.1, help="annealling temperature")
-    parser.add_argument('--mle', type=bool, default=False, help="use MLE softmax")
+    parser.add_argument('--tau', type=float, default=0.01, help="annealling temperature")
 
     # args for training options
     # parser.add_argument('--batch_size', type=int, default=200, help="batch size of sentences for each iteration")

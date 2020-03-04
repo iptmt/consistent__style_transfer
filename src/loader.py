@@ -65,7 +65,7 @@ def collate_pretrain(vocab, w2v):
         )
     return collate_func
 
-def collate_optimize(batch_samples):
+def collate_warmup(batch_samples):
     sentences, labels = zip(*batch_samples)
     noised_sentences = transfer_noise(sentences, p=0.1)
 
@@ -73,6 +73,14 @@ def collate_optimize(batch_samples):
     aligned_noised_sentences, _, _ = align(add_borders(noised_sentences, end=EOS_ID), PAD_ID)
     return (
         pth_tensor(aligned_noised_sentences, torch.long),
+        pth_tensor(aligned_sentences, torch.long),
+        pth_tensor(labels, torch.long)
+    )
+
+def collate_optimize(batch_samples):
+    sentences, labels = zip(*batch_samples)
+    aligned_sentences, _, _ = align(add_borders(sentences, end=EOS_ID), PAD_ID)
+    return (
         pth_tensor(aligned_sentences, torch.long),
         pth_tensor(labels, torch.long)
     )

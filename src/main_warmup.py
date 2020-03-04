@@ -13,13 +13,13 @@ from pytorch_lightning.callbacks import EarlyStopping
 from model.seq2seq import RNNSearch
 
 from vocab import BPETokenizer
-from loader import StyleDataset, load_s2l, collate_optimize 
+from loader import StyleDataset, load_s2l, collate_warmup
 
 STAGE = "warmup"
 
-class CoarseTransfer(pl.LightningModule):
+class WarmupModel(pl.LightningModule):
     def __init__(self, args):
-        super(CoarseTransfer, self).__init__()
+        super(WarmupModel, self).__init__()
         self.hparams = args
 
         self.vocab = BPETokenizer.load(f"{args.dump_dir}/{args.dataset}/{args.dataset}-vocab.json",
@@ -68,7 +68,7 @@ class CoarseTransfer(pl.LightningModule):
         dataset = StyleDataset([f"{self.data_dir}/style.train.0", f"{self.data_dir}/style.train.1"], self.vocab, 
                                 max_len=self.hparams.max_len, load_func=load_s2l)
         data_loader = DataLoader(dataset, batch_size=self.hparams.batch_size, shuffle=True, 
-                                 collate_fn=collate_optimize)
+                                 collate_fn=collate_warmup)
         return data_loader
     
     @pl.data_loader
@@ -76,7 +76,7 @@ class CoarseTransfer(pl.LightningModule):
         dataset = StyleDataset([f"{self.data_dir}/style.dev.0", f"{self.data_dir}/style.dev.1"], self.vocab, 
                                 max_len=self.hparams.max_len, load_func=load_s2l)
         data_loader = DataLoader(dataset, batch_size=self.hparams.batch_size, shuffle=False, 
-                                 collate_fn=collate_optimize)
+                                 collate_fn=collate_warmup)
         return data_loader
     
 def construct_trainer(args):
