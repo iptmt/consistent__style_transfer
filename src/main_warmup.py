@@ -40,7 +40,7 @@ class WarmupModel(pl.LightningModule):
         return dn_logits 
     
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.generator.parameters(), lr=3e-4)
+        optimizer = torch.optim.Adam(self.generator.parameters(), lr=1e-3)
         return optimizer
     
     def training_step(self, batch, batch_idx):
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     args = fetch_args()
 
     if args.dataset == "yelp":
-        args.epochs = 5
+        args.epochs = 2
         args.batch_size = 256
     else:
         raise ValueError
