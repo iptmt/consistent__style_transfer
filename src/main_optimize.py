@@ -198,7 +198,7 @@ class GenerationTuner(pl.LightningModule):
 
 def construct_trainer(args):
     logger = TensorBoardLogger(save_dir=args.log_dir,
-                               name=f"{STAGE}-{args.model_version}",
+                               name=f"{STAGE}-{args.ver}",
                                version=args.restore_version)
     checkpoint = ModelCheckpoint(filepath=args.task_dump_dir,
                                  save_weights_only=False,
@@ -231,14 +231,14 @@ if __name__ == "__main__":
         raise ValueError
 
     # dump dir
-    if not os.path.exists(f"{args.dump_dir}/{args.dataset}/{STAGE}-{args.model_version}"):
-        os.mkdir(f"{args.dump_dir}/{args.dataset}/{STAGE}-{args.model_version}")
-    args.task_dump_dir = f"{args.dump_dir}/{args.dataset}/{STAGE}-{args.model_version}"
+    if not os.path.exists(f"{args.dump_dir}/{args.dataset}/{STAGE}-{args.ver}"):
+        os.mkdir(f"{args.dump_dir}/{args.dataset}/{STAGE}-{args.ver}")
+    args.task_dump_dir = f"{args.dump_dir}/{args.dataset}/{STAGE}-{args.ver}"
 
     # output dir
-    if not os.path.exists(f"{args.out_dir}/{args.dataset}-{args.model_version}"):
-        os.mkdir(f"{args.out_dir}/{args.dataset}-{args.model_version}")
-    args.out_dir = f"{args.out_dir}/{args.dataset}-{args.model_version}"
+    if not os.path.exists(f"{args.out_dir}/{args.dataset}-{args.ver}"):
+        os.mkdir(f"{args.out_dir}/{args.dataset}-{args.ver}")
+    args.out_dir = f"{args.out_dir}/{args.dataset}-{args.ver}"
 
     args.log_dir = f"{args.log_dir}/{args.dataset}"
 
