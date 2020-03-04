@@ -132,7 +132,7 @@ class GenerationTuner(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, labels = batch
 
-        sample_p = self.generator(x, 1 - labels, None, None, gumbel=True, tau=self.tau)
+        _, sample_p = self.generator(x, 1 - labels, None, None, gumbel=True, tau=self.tau)
 
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x) 
@@ -154,7 +154,7 @@ class GenerationTuner(pl.LightningModule):
     
     def test_step(self, batch, batch_idx):
         x, labels = batch
-        logits, _ = self.generator(x, labels, None, None, gumbel=False, tau=self.tau)
+        logits, _ = self.generator(x, labels, None, None, gumbel=False)
         return {
             "ori": x.cpu().numpy().tolist(),
             "tsf": logits.argmax(-1).cpu().numpy().tolist(),
