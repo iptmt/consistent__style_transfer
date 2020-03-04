@@ -132,7 +132,7 @@ class GenerationTuner(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, labels = batch
 
-        sample_p = self.forward(x, 1 - labels, self.tau, 1) # make sample_p close to one_hot
+        sample_p = self.generator(x, 1 - labels, None, None, gumbel=True, tau=self.tau)
 
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x) 
