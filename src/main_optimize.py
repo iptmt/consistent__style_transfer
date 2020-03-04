@@ -78,7 +78,7 @@ class GenerationTuner(pl.LightningModule):
     def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, second_order_closure=None):
         # update discriminator every 1 steps
         if optimizer_idx == 1:
-            if batch_idx % 10 == 0:
+            if batch_idx % 5 == 0:
                 optimizer.step()
                 optimizer.zero_grad()
         # update generator opt every 1 steps
@@ -115,7 +115,7 @@ class GenerationTuner(pl.LightningModule):
         if optimizer_idx == 1:
             t_logits, f_logits = self.forward(x, 1 - labels, tau, optimizer_idx)
             t_labels, f_labels = t_logits.new_ones([t_logits.size(0)]), f_logits.new_zeros([f_logits.size(0)])
-            d_loss = 0.5 * (self.bce_crit(t_logits, t_labels) + self.bce_crit(f_logits, f_labels))
+            d_loss = 0.5 * w * (self.bce_crit(t_logits, t_labels) + self.bce_crit(f_logits, f_labels))
             loginfo = {"D": d_loss}
             return {"loss": d_loss, "progress_bar": loginfo, "log": loginfo}
         
