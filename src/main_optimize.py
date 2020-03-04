@@ -115,9 +115,9 @@ class GenerationTuner(pl.LightningModule):
         if optimizer_idx == 1:
             t_logits, f_logits = self.forward(x, 1 - labels, tau, optimizer_idx)
             t_labels, f_labels = t_logits.new_ones([t_logits.size(0)]), f_logits.new_zeros([f_logits.size(0)])
-            d_loss = 0.5 * w * (self.bce_crit(t_logits, t_labels) + self.bce_crit(f_logits, f_labels))
+            d_loss = 0.5 * (self.bce_crit(t_logits, t_labels) + self.bce_crit(f_logits, f_labels))
             loginfo = {"D": d_loss}
-            return {"loss": d_loss, "progress_bar": loginfo, "log": loginfo}
+            return {"loss": w * d_loss, "progress_bar": loginfo, "log": loginfo}
         
         # optimize generator
         if optimizer_idx == 2:
