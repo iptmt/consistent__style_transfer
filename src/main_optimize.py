@@ -43,6 +43,8 @@ class GenerationTuner(pl.LightningModule):
         self.matcher.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/mat.pth"))
         self.lm.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/lm.pth"))
 
+        self.generator.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/warmup/G.pth"))
+
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
         self.bce_crit = nn.BCEWithLogitsLoss()
