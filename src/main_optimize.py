@@ -65,23 +65,24 @@ class GenerationTuner(pl.LightningModule):
             t_logits = self.disc(F.one_hot(x, len(self.vocab)).float())
             f_logits = self.disc(sample_p.detach())
             return t_logits, f_logits
-        elif optimizer_idx == 1:
+        elif optimizer_idx == 1 or optimizer_idx == 2:
             _, sample_p = self.generator(x, labels, None, None, gumbel=True, tau=tau)
             return sample_p
  
     def configure_optimizers(self):
         optimizer_dsc = torch.optim.Adam(self.disc.parameters(), lr=1e-4)
         optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
-        return optimizer_dsc, optimizer_gen
+        optimizer_opt = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
+        return optimizer_dsc, optimizer_gen, optimizer_opt
     
     def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, second_order_closure=None):
         # update discriminator every 1 steps
         if optimizer_idx == 0:
-            if batch_idx % 10 == 0:
+            if batch_idx % 5 == 0:
                 optimizer.step()
                 optimizer.zero_grad()
         # update generator opt every 1 steps
-        if optimizer_idx == 1:
+        if optimizer_idx == 1 or optimizer_idx == 2:
             optimizer.step()
             optimizer.zero_grad()
 
@@ -109,6 +110,13 @@ class GenerationTuner(pl.LightningModule):
             g_labels = g_logits.new_ones([g_logits.size(0)])
             g_loss = self.bce_crit(g_logits, g_labels)
 
+            loginfo = {"G": g_loss}
+            return {"loss": g_loss, "progress_bar": loginfo, "log": loginfo}
+        
+        # optimize generator with estimators
+        if optimizer_idx == 2:
+            sample_p = self.forward(x, 1 - labels, self.tau, optimizer_idx)
+
             s_logits = self.classifier(sample_p)
             c_logits = self.matcher(sample_p, x) 
             l_logits = self.lm(sample_p, 1 - labels)
@@ -117,14 +125,14 @@ class GenerationTuner(pl.LightningModule):
             c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
             l_loss = self.ce_crit(l_logits.reshape(-1, l_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
 
-            loss = g_loss + w * (self.hparams.alpha * s_loss + self.hparams.beta * c_loss + self.hparams.gamma * l_loss)
-            loginfo = {"G": g_loss, "s": s_loss, "c": c_loss, "l": l_loss, "tau": tau, "w": w}
+            loss = w * (self.hparams.alpha * s_loss + self.hparams.beta * c_loss + self.hparams.gamma * l_loss)
+            loginfo = {"s": s_loss, "c": c_loss, "l": l_loss}
             return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
  
     def validation_step(self, batch, batch_idx):
         x, labels = batch
 
-        sample_p = self.forward(x, 1 - labels, 0.01, 1) # make sample_p close to one_hot
+        sample_p = self.forward(x, 1 - labels, self.tau, 1) # make sample_p close to one_hot
 
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x) 
@@ -146,7 +154,7 @@ class GenerationTuner(pl.LightningModule):
     
     def test_step(self, batch, batch_idx):
         x, labels = batch
-        logits, _ = self.generator(x, labels, None, None, gumbel=False, tau=0.01)
+        logits, _ = self.generator(x, labels, None, None, gumbel=False, tau=self.tau)
         return {
             "ori": x.cpu().numpy().tolist(),
             "tsf": logits.argmax(-1).cpu().numpy().tolist(),
