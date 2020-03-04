@@ -45,7 +45,7 @@ class WarmupModel(pl.LightningModule):
         return dn_logits, bk_logits 
     
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.generator.parameters(), lr=1e-3)
+        optimizer = torch.optim.Adam(self.generator.parameters(), lr=5e-4)
         return optimizer
     
     def training_step(self, batch, batch_idx):

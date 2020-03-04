@@ -77,7 +77,7 @@ class GenerationTuner(pl.LightningModule):
     def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, second_order_closure=None):
         # update discriminator every 1 steps
         if optimizer_idx == 0:
-            if batch_idx % 5 == 0:
+            if batch_idx % 10 == 0:
                 optimizer.step()
                 optimizer.zero_grad()
         # update generator opt every 1 steps
