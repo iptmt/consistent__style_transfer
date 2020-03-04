@@ -97,7 +97,7 @@ class GenerationTuner(pl.LightningModule):
             t_logits, f_logits = self.forward(x, 1 - labels, tau, optimizer_idx)
             t_labels, f_labels = t_logits.new_ones([t_logits.size(0)]), f_logits.new_zeros([f_logits.size(0)])
             d_loss = 0.5 * (self.bce_crit(t_logits, t_labels) + self.bce_crit(f_logits, f_labels))
-            loginfo = {"d_loss": d_loss}
+            loginfo = {"D": d_loss}
             return {"loss": d_loss, "progress_bar": loginfo, "log": loginfo}
         
         # optimize generator
@@ -116,7 +116,7 @@ class GenerationTuner(pl.LightningModule):
             l_loss = self.ce_crit(l_logits.reshape(-1, l_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
 
             loss = g_loss + w * (self.hparams.alpha * s_loss + self.hparams.beta * c_loss + self.hparams.gamma * l_loss)
-            loginfo = {"g_loss": g_loss, "L_s": s_loss, "L_c": c_loss, "L_l": l_loss}
+            loginfo = {"G": g_loss, "s": s_loss, "c": c_loss, "l": l_loss, "tau": tau, "w": w}
             return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
  
     def validation_step(self, batch, batch_idx):
@@ -215,7 +215,7 @@ if __name__ == "__main__":
     args = fetch_args()
 
     if args.dataset == "yelp":
-        args.epochs = 10
+        args.epochs = 20
         args.batch_size = 200
     else:
         raise ValueError
