@@ -39,8 +39,8 @@ class WarmupModel(pl.LightningModule):
         dn_logits, _ = self.generator(nx, labels, x, max_len)
 
         with torch.no_grad():
-            x_tsf, _ = self.generator(x, 1 - labels, None, None)
-        bk_logits, _ = self.generator(x_tsf.argmax(-1), labels, x, max_len)
+            x_tsf = self.generator(x, 1 - labels, None, None)[0].argmax(-1)
+        bk_logits, _ = self.generator(x_tsf, labels, x, max_len)
 
         return dn_logits, bk_logits 
     
