@@ -114,7 +114,7 @@ class GenerationTuner(pl.LightningModule):
             l_logits = self.lm(sample_p, 1 - labels)
 
             s_loss = self.ce_crit(s_logits, 1 - labels)
-            c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], 0.))
+            c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
             l_loss = self.ce_crit(l_logits.reshape(-1, l_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
 
             loss = g_loss + w * (self.hparams.alpha * s_loss + self.hparams.beta * c_loss + self.hparams.gamma * l_loss)
