@@ -37,7 +37,12 @@ class WarmupModel(pl.LightningModule):
     def forward(self, nx, labels, x, max_len):
         # denoise
         dn_logits, _ = self.generator(nx, labels, x, max_len)
-        return dn_logits 
+
+        with torch.no_grad():
+            x_tsf = self.generator(x, 1 - labels, None, None)[0].argmax(-1)
+        bk_logits, _ = self.generator(x_tsf, labels, x, max_len)
+
+        return dn_logits, bk_logits 
     
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.generator.parameters(), lr=1e-3)
@@ -45,23 +50,27 @@ class WarmupModel(pl.LightningModule):
     
     def training_step(self, batch, batch_idx):
         nx, x, labels = batch
-        dn_logits = self.forward(nx, labels, x, x.size(1))
+        dn_logits, bk_logits = self.forward(nx, labels, x, x.size(1))
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
-        return {"loss": dn_loss, "progress_bar": {"dn_loss": dn_loss}, "log": {"dn_loss": dn_loss}}
+        bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
+
+        loginfo = {"dn_loss": dn_loss, "bk_loss": bk_loss}
+        return {"loss": dn_loss + bk_loss, "progress_bar": loginfo, "log": loginfo}
     
     def validation_step(self, batch, batch_idx):
         nx, x, labels = batch
-        dn_logits = self.forward(nx, labels, None, x.size(1))
+        dn_logits, bk_logits = self.forward(nx, labels, None, x.size(1))
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
-        return {"dn_loss": dn_loss.item()}
+        bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
+        return {"loss": dn_loss.item() + bk_loss.item()}
     
     def validation_end(self, outputs):
-        dn_losses = np.array([o["dn_loss"] for o in outputs])
-        dn_loss = dn_losses.mean()
-        if self.best_eval > dn_loss:
-            self.best_eval = dn_loss
+        losses = np.array([o["loss"] for o in outputs])
+        loss = losses.mean()
+        if self.best_eval > loss:
+            self.best_eval = loss
             torch.save(self.generator.state_dict(), f"{self.hparams.task_dump_dir}/G.pth")
-        return {"progress_bar": {"dn_loss": dn_loss}, "log": {"val_loss": dn_loss}}
+        return {"progress_bar": {"loss": loss}, "log": {"val_loss": loss}}
     
     @pl.data_loader
     def train_dataloader(self):
