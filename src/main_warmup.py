@@ -59,7 +59,7 @@ class WarmupModel(pl.LightningModule):
     
     def validation_step(self, batch, batch_idx):
         nx, x, labels = batch
-        dn_logits, bk_logits = self.forward(nx, labels, None, x.size(1))
+        dn_logits, bk_logits = self.forward(nx, labels, x, x.size(1))
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
         bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
         return {"loss": dn_loss.item() + bk_loss.item()}
