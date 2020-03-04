@@ -9,7 +9,7 @@ def fetch_args():
 
     parser.add_argument('--dataset', type=str, required=True)
     parser.add_argument('--mode', type=str, default="train") # "train" or "test"
-    parser.add_argument('--model_version', type=str, required=True)
+    parser.add_argument('--ver', type=str, required=True)
 
     # args for file system
     parser.add_argument('--data_dir', type=str, default=f"{base_dir}/data")
