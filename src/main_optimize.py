@@ -45,15 +45,15 @@ class GenerationTuner(pl.LightningModule):
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
-        self.bce_crit = nn.BCELoss()
+        self.bce_crit = nn.BCEWithLogitsLoss()
         self.ce_crit = nn.CrossEntropyLoss()
         self.mse_crit = nn.MSELoss()
         
         self.tau = args.tau
         self.sigmoid = nn.Sigmoid()
 
-        n_batch = math.ceil(self.args.n_samples / self.args.batch_size)
-        self.anneal_steps = self.args.epochs * n_batch
+        n_batch = math.ceil(args.n_samples / args.batch_size)
+        self.anneal_steps = args.epochs * n_batch
     
     def forward(self, x, labels, tau, optimizer_idx):
         # optimize D
@@ -73,15 +73,15 @@ class GenerationTuner(pl.LightningModule):
         return optimizer_dsc, optimizer_gen
     
     def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, second_order_closure=None):
-        # update generator opt every 1 steps
+        # update discriminator every 1 steps
         if optimizer_idx == 0:
-            optimizer.step()
-            optimizer.zero_grad()
-        # update discriminator opt every 5 steps
-        if optimizer_idx == 1:
-            if batch_idx % 5 == 0 :
+            if batch_idx % 5 == 0:
                 optimizer.step()
                 optimizer.zero_grad()
+        # update generator opt every 1 steps
+        if optimizer_idx == 1:
+            optimizer.step()
+            optimizer.zero_grad()
 
     def get_current_w(self):
         p = self.global_step / self.anneal_steps
@@ -95,9 +95,8 @@ class GenerationTuner(pl.LightningModule):
         # optimize discriminator
         if optimizer_idx == 0:
             t_logits, f_logits = self.forward(x, 1 - labels, tau, optimizer_idx)
-            t_labels, f_labels = x.new_ones([t_logits.size(0)]), x.new_zeros([f_logits.size(0)])
-            d_loss = 0.5 * (self.bce_crit(self.sigmoid(t_logits), t_labels) + \
-                            self.bce_crit(self.sigmoid(f_logits), f_labels))
+            t_labels, f_labels = t_logits.new_ones([t_logits.size(0)]), f_logits.new_zeros([f_logits.size(0)])
+            d_loss = 0.5 * (self.bce_crit(t_logits, t_labels) + self.bce_crit(f_logits, f_labels))
             loginfo = {"d_loss": d_loss}
             return {"loss": d_loss, "progress_bar": loginfo, "log": loginfo}
         
@@ -105,12 +104,12 @@ class GenerationTuner(pl.LightningModule):
         if optimizer_idx == 1:
             sample_p = self.forward(x, 1 - labels, tau, optimizer_idx)
             g_logits = self.disc(sample_p)
-            g_labels = x.new_ones([g_logits.size(0)])
-            g_loss = self.bce_crit(self.sigmoid(g_logits), g_labels)
+            g_labels = g_logits.new_ones([g_logits.size(0)])
+            g_loss = self.bce_crit(g_logits, g_labels)
 
             s_logits = self.classifier(sample_p)
             c_logits = self.matcher(sample_p, x) 
-            l_logits = self.lm(sample_p)
+            l_logits = self.lm(sample_p, 1 - labels)
 
             s_loss = self.ce_crit(s_logits, 1 - labels)
             c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], 0.))
@@ -127,10 +126,10 @@ class GenerationTuner(pl.LightningModule):
 
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x) 
-        l_logits = self.lm(sample_p)
+        l_logits = self.lm(sample_p, 1 - labels)
 
         s_loss = self.ce_crit(s_logits, 1 - labels)
-        c_loss = c_logits.mea()
+        c_loss = c_logits.mean()
         l_loss = self.ce_crit(l_logits.reshape(-1, l_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
 
         return {"loss": s_loss.item() + c_loss.item() + l_loss.item()}

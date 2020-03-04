@@ -30,7 +30,7 @@ class Matcher(nn.Module):
             raise Exception
         p_idx = torch.arange(tensor.size(1), device=tensor.device).long().unsqueeze(0).expand(tensor.size(0), -1)
         E_p = self.posit_embedding(p_idx)
-        E_s = self.segment_embedding(torch.full((tensor.shape[:-1]), seg_id, device=tensor.device).long()).unsqueeze(1)
+        E_s = self.segment_embedding(torch.full((tensor.size(0),), seg_id, device=tensor.device).long()).unsqueeze(1)
         return E_t + E_p + E_s
     
     def forward(self, x1, x2):
