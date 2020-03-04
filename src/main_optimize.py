@@ -59,30 +59,30 @@ class GenerationTuner(pl.LightningModule):
     
     def forward(self, x, labels, tau, optimizer_idx):
         # optimize D
-        if optimizer_idx == 0:
+        if optimizer_idx == 1:
             with torch.no_grad():
                 _, sample_p = self.generator(x, labels, None, None, gumbel=True, tau=tau)
             t_logits = self.disc(F.one_hot(x, len(self.vocab)).float())
             f_logits = self.disc(sample_p.detach())
             return t_logits, f_logits
-        elif optimizer_idx == 1 or optimizer_idx == 2:
+        elif optimizer_idx == 0 or optimizer_idx == 2:
             _, sample_p = self.generator(x, labels, None, None, gumbel=True, tau=tau)
             return sample_p
  
     def configure_optimizers(self):
+        optimizer_opt = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
         optimizer_dsc = torch.optim.Adam(self.disc.parameters(), lr=1e-4)
         optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
-        optimizer_opt = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
-        return optimizer_dsc, optimizer_gen, optimizer_opt
+        return optimizer_opt, optimizer_dsc, optimizer_gen
     
     def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, second_order_closure=None):
         # update discriminator every 1 steps
-        if optimizer_idx == 0:
-            if batch_idx % 5 == 0:
+        if optimizer_idx == 1:
+            if batch_idx % 10 == 0:
                 optimizer.step()
                 optimizer.zero_grad()
         # update generator opt every 1 steps
-        if optimizer_idx == 1 or optimizer_idx == 2:
+        if optimizer_idx == 0 or optimizer_idx == 2:
             optimizer.step()
             optimizer.zero_grad()
 
@@ -95,26 +95,8 @@ class GenerationTuner(pl.LightningModule):
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
         tau, w = self.get_current_w()
-        # optimize discriminator
-        if optimizer_idx == 0:
-            t_logits, f_logits = self.forward(x, 1 - labels, tau, optimizer_idx)
-            t_labels, f_labels = t_logits.new_ones([t_logits.size(0)]), f_logits.new_zeros([f_logits.size(0)])
-            d_loss = 0.5 * (self.bce_crit(t_logits, t_labels) + self.bce_crit(f_logits, f_labels))
-            loginfo = {"D": d_loss}
-            return {"loss": d_loss, "progress_bar": loginfo, "log": loginfo}
-        
-        # optimize generator
-        if optimizer_idx == 1:
-            sample_p = self.forward(x, 1 - labels, tau, optimizer_idx)
-            g_logits = self.disc(sample_p)
-            g_labels = g_logits.new_ones([g_logits.size(0)])
-            g_loss = self.bce_crit(g_logits, g_labels)
-
-            loginfo = {"G": g_loss}
-            return {"loss": g_loss, "progress_bar": loginfo, "log": loginfo}
-        
         # optimize generator with estimators
-        if optimizer_idx == 2:
+        if optimizer_idx == 0:
             sample_p = self.forward(x, 1 - labels, self.tau, optimizer_idx)
 
             s_logits = self.classifier(sample_p)
@@ -128,7 +110,25 @@ class GenerationTuner(pl.LightningModule):
             loss = w * (self.hparams.alpha * s_loss + self.hparams.beta * c_loss + self.hparams.gamma * l_loss)
             loginfo = {"s": s_loss, "c": c_loss, "l": l_loss}
             return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
- 
+
+        # optimize discriminator
+        if optimizer_idx == 1:
+            t_logits, f_logits = self.forward(x, 1 - labels, tau, optimizer_idx)
+            t_labels, f_labels = t_logits.new_ones([t_logits.size(0)]), f_logits.new_zeros([f_logits.size(0)])
+            d_loss = 0.5 * (self.bce_crit(t_logits, t_labels) + self.bce_crit(f_logits, f_labels))
+            loginfo = {"D": d_loss}
+            return {"loss": d_loss, "progress_bar": loginfo, "log": loginfo}
+        
+        # optimize generator
+        if optimizer_idx == 2:
+            sample_p = self.forward(x, 1 - labels, tau, optimizer_idx)
+            g_logits = self.disc(sample_p)
+            g_labels = g_logits.new_ones([g_logits.size(0)])
+            g_loss = self.bce_crit(g_logits, g_labels)
+
+            loginfo = {"G": g_loss}
+            return {"loss": g_loss, "progress_bar": loginfo, "log": loginfo}
+        
     def validation_step(self, batch, batch_idx):
         x, labels = batch
 
