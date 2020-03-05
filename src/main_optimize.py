@@ -90,7 +90,7 @@ class GenerationTuner(pl.LightningModule):
         p = self.global_step / self.anneal_steps
         w = min([p, 1.0])
         tau = self.tau ** p
-        return tau, w
+        return self.tau, w #TODO:
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
@@ -109,7 +109,7 @@ class GenerationTuner(pl.LightningModule):
 
             loss = w * (self.hparams.alpha * s_loss + self.hparams.beta * c_loss + self.hparams.gamma * l_loss)
             loginfo = {"s": s_loss, "c": c_loss, "l": l_loss}
-            return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
+            return {"loss": 1.0 * loss, "progress_bar": loginfo, "log": loginfo} #TODO:
 
         # optimize discriminator
         if optimizer_idx == 1:
@@ -117,7 +117,7 @@ class GenerationTuner(pl.LightningModule):
             t_labels, f_labels = t_logits.new_ones([t_logits.size(0)]), f_logits.new_zeros([f_logits.size(0)])
             d_loss = 0.5 * (self.bce_crit(t_logits, t_labels) + self.bce_crit(f_logits, f_labels))
             loginfo = {"D": d_loss}
-            return {"loss": w * d_loss, "progress_bar": loginfo, "log": loginfo}
+            return {"loss": 0 * d_loss, "progress_bar": loginfo, "log": loginfo} #TODO:
         
         # optimize generator
         if optimizer_idx == 2:
@@ -127,7 +127,7 @@ class GenerationTuner(pl.LightningModule):
             g_loss = self.bce_crit(g_logits, g_labels)
 
             loginfo = {"G": g_loss}
-            return {"loss": g_loss, "progress_bar": loginfo, "log": loginfo}
+            return {"loss": 0 * g_loss, "progress_bar": loginfo, "log": loginfo} #TODO:
         
     def validation_step(self, batch, batch_idx):
         x, labels = batch
