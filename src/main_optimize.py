@@ -92,7 +92,7 @@ class GenerationTuner(pl.LightningModule):
         p = self.global_step / self.anneal_steps
         w = min([p / 0.5, 1.0])
         tau = 0.5 * (self.tau ** p)
-        return tau, w
+        return self.tau, w
     
     def soft_ce(self, s, t):
         return - (t * F.log_softmax(s, -1)).sum(-1).mean()
