@@ -90,7 +90,7 @@ class GenerationTuner(pl.LightningModule):
 
     def get_current_w(self):
         p = self.global_step / self.anneal_steps
-        w = min([p / 0.5, 1.0])
+        w = min([p, 1.0])
         tau = 0.5 * (self.tau ** p)
         return self.tau, w
     
