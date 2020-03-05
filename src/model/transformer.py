@@ -25,6 +25,8 @@ class DenoiseTransformer(nn.Module):
         self.max_len = seq_max_len
 
         self.dropout = nn.Dropout(p_dropout)
+
+        nn.init.xavier_uniform_(self.token_embedding.weight)
     
     def encoder_embed(self, x):
         x_oh = F.one_hot(x, self.n_vocab).float()
