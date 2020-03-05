@@ -9,7 +9,8 @@ class DenoiseTransformer(nn.Module):
                        n_enc_layer=6, n_dec_layer=6, p_dropout=0.1):
         super().__init__()
 
-        self.token_embedding = nn.Linear(n_vocab, d_model, bias=False)
+        # self.token_embedding = nn.Linear(n_vocab, d_model, bias=False)
+        self.token_embedding = nn.Embedding(n_vocab, d_model)
         self.posit_embedding = nn.Embedding(100, d_model)
         self.style_embedding = nn.Embedding(n_class, d_model)
 
@@ -21,6 +22,8 @@ class DenoiseTransformer(nn.Module):
             nn.TransformerDecoderLayer(d_model=d_model, nhead=n_head), num_layers=n_dec_layer
         )
 
+        self.proj_to_vocab = nn.Linear(d_model, n_vocab)
+
         self.n_vocab = n_vocab
         self.max_len = seq_max_len
 
@@ -29,8 +32,8 @@ class DenoiseTransformer(nn.Module):
         nn.init.xavier_uniform_(self.token_embedding.weight)
     
     def encoder_embed(self, x):
-        x_oh = F.one_hot(x, self.n_vocab).float()
-        E_t = self.token_embedding(x_oh)
+        # x_oh = F.one_hot(x, self.n_vocab).float()
+        E_t = self.token_embedding(x)
         E_p = self.posit_embedding(torch.arange(x.size(1), device=x.device).long()).unsqueeze(0)
         return E_t + E_p
     
@@ -39,8 +42,8 @@ class DenoiseTransformer(nn.Module):
         E_p = self.posit_embedding(torch.arange(max_len, device=label.device).long()).unsqueeze(0)
         return E_s + E_p
     
-    def proj_to_vocab(self, h):
-        return h.matmul(self.token_embedding.weight)
+    # def proj_to_vocab(self, h):
+    #     return h.matmul(self.token_embedding.weight)
     
     def forward(self, x, label, max_len=None, gumbel=False, tau=1.0):
         max_len = max_len if max_len is not None else self.max_len
@@ -65,5 +68,5 @@ if __name__ == "__main__":
     model = DenoiseTransformer(10000, 2, 16)
     x = torch.randint(0, 10000, (8, 14))
     l = torch.randint(0, 1, (8,))
-    o = model(x, l)
+    o = model(x, l, 10)
     print(o.shape)
