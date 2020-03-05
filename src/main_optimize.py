@@ -54,7 +54,7 @@ class GenerationTuner(pl.LightningModule):
         self.mse_crit = nn.MSELoss()
         
         self.tau = args.tau
-        self.sigmoid = nn.Sigmoid()
+        self.softmax = nn.Softmax(-1)
 
         n_batch = math.ceil(args.n_samples / args.batch_size)
         self.anneal_steps = args.epochs * n_batch
@@ -68,8 +68,8 @@ class GenerationTuner(pl.LightningModule):
         #     f_logits = self.disc(sample_p.detach())
         #     return t_logits, f_logits
         # elif optimizer_idx == 0 or optimizer_idx == 2:
-        sample_p = self.generator(x, labels, None, gumbel=True, tau=tau)
-        return sample_p
+        sample_p = self.generator(x, labels, None, gumbel=False, tau=tau)
+        return self.softmax(sample_p / tau)
  
     def configure_optimizers(self):
         optimizer_opt = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
@@ -90,8 +90,8 @@ class GenerationTuner(pl.LightningModule):
 
     def get_current_w(self):
         p = self.global_step / self.anneal_steps
-        w = min([p, 1.0])
-        tau = (self.tau ** p)
+        w = min([p / 0.5, 1.0])
+        tau = 0.5 * (self.tau ** p)
         return tau, w
 
     def training_step(self, batch, batch_idx):#, optimizer_idx):
