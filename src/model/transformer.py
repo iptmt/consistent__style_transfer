@@ -22,7 +22,7 @@ class DenoiseTransformer(nn.Module):
             num_layers=n_enc_layer
         )
 
-        self.decoder = DNTransformerDecoder(
+        self.decoder = nn.TransformerDecoder(
             DNTransformerDecoderLayer(d_model=d_model, nhead=n_head, dim_feedforward=d_ffw), 
             num_layers=n_dec_layer
         )
@@ -44,17 +44,17 @@ class DenoiseTransformer(nn.Module):
     def decoder_embed(self, label, max_len):
         E_s = self.style_embedding(label).unsqueeze(1)
         E_p = self.posit_embedding(torch.arange(max_len, device=label.device).long()).unsqueeze(0)
-        return E_s, E_p
+        return E_s + E_p
     
     def forward(self, x, label, max_len=None, gumbel=False, tau=1.0):
         max_len = max_len if max_len is not None else self.max_len
 
         x = self.dropout(self.encoder_embed(x))
-        lb, pos_enc = self.decoder_embed(label, max_len)
+        lb = self.decoder_embed(label, max_len)
 
         memory = self.encoder(x.transpose(0, 1))
  
-        output = self.decoder(lb.transpose(0, 1), memory, pos_enc.transpose(0, 1))
+        output = self.decoder(lb.transpose(0, 1), memory)
 
         logits = self.proj_to_vocab(self.dropout(output.transpose(0, 1)))
 
@@ -64,29 +64,6 @@ class DenoiseTransformer(nn.Module):
         else:
             return logits
 
-
-class DNTransformerDecoder(nn.Module):
-    def __init__(self, decoder_layer, num_layers, norm=None):
-        super(DNTransformerDecoder, self).__init__()
-        self.layers = _get_clones(decoder_layer, num_layers)
-        self.num_layers = num_layers
-        self.norm = norm
-
-    def forward(self, tgt, memory, pos_encoding, tgt_mask=None,
-                memory_mask=None, tgt_key_padding_mask=None,
-                memory_key_padding_mask=None):
-        output = tgt
-
-        for i in range(self.num_layers):
-            output = output + pos_encoding
-            output = self.layers[i](output, memory, tgt_mask=tgt_mask,
-                                    memory_mask=memory_mask,
-                                    tgt_key_padding_mask=tgt_key_padding_mask,
-                                    memory_key_padding_mask=memory_key_padding_mask)
-        if self.norm:
-            output = self.norm(output)
-
-        return output
 
 class DNTransformerDecoderLayer(nn.Module):
     def __init__(self, d_model, nhead, dim_feedforward, dropout=0.1):
