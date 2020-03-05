@@ -88,8 +88,8 @@ class GenerationTuner(pl.LightningModule):
 
     def get_current_w(self):
         p = self.global_step / self.anneal_steps
-        w = min([p, 1.0])
-        tau = 0.5 * self.tau ** p
+        w = min([p / 0.5, 1.0])
+        tau = 0.5 * (self.tau ** p)
         return tau, w
 
     def training_step(self, batch, batch_idx):#, optimizer_idx):
@@ -107,7 +107,8 @@ class GenerationTuner(pl.LightningModule):
         c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
         l_loss = self.ce_crit(l_logits.reshape(-1, l_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
 
-        loss = w * self.hparams.alpha * s_loss + w * self.hparams.beta * c_loss + self.hparams.gamma * l_loss
+        # loss = w * self.hparams.alpha * s_loss + w * self.hparams.beta * c_loss + self.hparams.gamma * l_loss
+        loss = l_loss + w * self.hparams.alpha * s_loss + w * self.hparams.beta * c_loss
         loginfo = {"S": s_loss, "C": c_loss, "L": l_loss, "tau": tau}
         return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
 
