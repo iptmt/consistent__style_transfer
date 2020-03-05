@@ -95,7 +95,7 @@ class GenerationTuner(pl.LightningModule):
         return tau, w
     
     def soft_ce(self, s, t):
-        return (t * F.log_softmax(s, -1)).sum(-1).mean()
+        return - (t * F.log_softmax(s, -1)).sum(-1).mean()
 
     def training_step(self, batch, batch_idx):#, optimizer_idx):
         x, labels = batch
