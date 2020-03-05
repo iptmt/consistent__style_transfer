@@ -10,7 +10,8 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
-from model.seq2seq import RNNSearch
+# from model.seq2seq import RNNSearch
+from model.transformer import DenoiseTransformer
 from model.classifier import TextCNN
 from model.match import Matcher
 from model.bilm import BiLM
@@ -34,9 +35,10 @@ class GenerationTuner(pl.LightningModule):
         self.matcher = Matcher(len(self.vocab))
         self.lm = BiLM(len(self.vocab), n_class=2)
 
-        self.generator = RNNSearch(len(self.vocab), args.d_embed, args.d_enc_hidden, args.d_dec_hidden,
-                                   args.n_enc_layer, args.n_dec_layer, args.n_class, args.p_drop, args.max_len)
-        self.disc = RelGAN_D(len(self.vocab))
+        self.generator = DenoiseTransformer(len(self.vocab), args.n_class, args.max_len)
+        # self.generator = RNNSearch(len(self.vocab), args.d_embed, args.d_enc_hidden, args.d_dec_hidden,
+        #                            args.n_enc_layer, args.n_dec_layer, args.n_class, args.p_drop, args.max_len)
+        # self.disc = RelGAN_D(len(self.vocab))
         
         # reload pretrained models
         self.classifier.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/cls.pth"))
@@ -57,17 +59,17 @@ class GenerationTuner(pl.LightningModule):
         n_batch = math.ceil(args.n_samples / args.batch_size)
         self.anneal_steps = args.epochs * n_batch
     
-    def forward(self, x, labels, tau, optimizer_idx):
+    def forward(self, x, labels, tau):
         # optimize D
-        if optimizer_idx == 1:
-            with torch.no_grad():
-                _, sample_p = self.generator(x, labels, None, None, gumbel=True, tau=tau)
-            t_logits = self.disc(F.one_hot(x, len(self.vocab)).float())
-            f_logits = self.disc(sample_p.detach())
-            return t_logits, f_logits
-        elif optimizer_idx == 0 or optimizer_idx == 2:
-            _, sample_p = self.generator(x, labels, None, None, gumbel=True, tau=tau)
-            return sample_p
+        # if optimizer_idx == 1:
+        #     with torch.no_grad():
+        #         _, sample_p = self.generator(x, labels, None, None, gumbel=True, tau=tau)
+        #     t_logits = self.disc(F.one_hot(x, len(self.vocab)).float())
+        #     f_logits = self.disc(sample_p.detach())
+        #     return t_logits, f_logits
+        # elif optimizer_idx == 0 or optimizer_idx == 2:
+        sample_p = self.generator(x, labels, None, gumbel=True, tau=tau)
+        return sample_p
  
     def configure_optimizers(self):
         optimizer_opt = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
@@ -88,8 +90,8 @@ class GenerationTuner(pl.LightningModule):
 
     def get_current_w(self):
         p = self.global_step / self.anneal_steps
-        w = min([p / 0.5, 1.0])
-        tau = 0.5 * (self.tau ** p)
+        w = min([p, 1.0])
+        tau = (self.tau ** p)
         return tau, w
 
     def training_step(self, batch, batch_idx):#, optimizer_idx):
@@ -97,7 +99,7 @@ class GenerationTuner(pl.LightningModule):
         tau, w = self.get_current_w()
         # optimize generator with estimators
         # if optimizer_idx == 0:
-        sample_p = self.forward(x, 1 - labels, tau, 0)
+        sample_p = self.forward(x, 1 - labels, tau)
 
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x) 
@@ -133,7 +135,7 @@ class GenerationTuner(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, labels = batch
 
-        _, sample_p = self.generator(x, 1 - labels, None, None, gumbel=True, tau=self.tau)
+        sample_p = self.generator(x, 1 - labels, None, gumbel=True, tau=self.tau)
 
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x) 
@@ -155,7 +157,7 @@ class GenerationTuner(pl.LightningModule):
     
     def test_step(self, batch, batch_idx):
         x, labels = batch
-        logits, _ = self.generator(x, labels, None, None, gumbel=False)
+        logits = self.generator(x, labels, None)
         return {
             "ori": x.cpu().numpy().tolist(),
             "tsf": logits.argmax(-1).cpu().numpy().tolist(),
