@@ -93,6 +93,9 @@ class GenerationTuner(pl.LightningModule):
         w = min([p / 0.5, 1.0])
         tau = 0.5 * (self.tau ** p)
         return tau, w
+    
+    def soft_ce(self, s, t):
+        return (t * F.log_softmax(s, -1)).sum(-1).mean()
 
     def training_step(self, batch, batch_idx):#, optimizer_idx):
         x, labels = batch
@@ -107,7 +110,8 @@ class GenerationTuner(pl.LightningModule):
 
         s_loss = self.ce_crit(s_logits, 1 - labels)
         c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
-        l_loss = self.ce_crit(l_logits.reshape(-1, l_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
+        # l_loss = self.ce_crit(l_logits.reshape(-1, l_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
+        l_loss = self.soft_ce(l_logits, sample_p)
 
         # loss = w * self.hparams.alpha * s_loss + w * self.hparams.beta * c_loss + self.hparams.gamma * l_loss
         loss = l_loss + w * self.hparams.alpha * s_loss + w * self.hparams.beta * c_loss
