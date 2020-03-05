@@ -70,7 +70,7 @@ class GenerationTuner(pl.LightningModule):
             return sample_p
  
     def configure_optimizers(self):
-        optimizer_opt = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
+        optimizer_opt = torch.optim.Adam(self.generator.parameters(), lr=1e-5)
         # optimizer_dsc = torch.optim.Adam(self.disc.parameters(), lr=1e-4)
         # optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
         return optimizer_opt#, optimizer_dsc, optimizer_gen
@@ -89,7 +89,7 @@ class GenerationTuner(pl.LightningModule):
     def get_current_w(self):
         p = self.global_step / self.anneal_steps
         w = min([p, 1.0])
-        tau = self.tau ** p
+        tau = 0.5 * self.tau ** p
         return tau, w
 
     def training_step(self, batch, batch_idx):#, optimizer_idx):
@@ -97,20 +97,18 @@ class GenerationTuner(pl.LightningModule):
         tau, w = self.get_current_w()
         # optimize generator with estimators
         # if optimizer_idx == 0:
-        sample_p = self.forward(x, 1 - labels, self.tau, 0) #TODO:
+        sample_p = self.forward(x, 1 - labels, tau, 0)
 
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x) 
         l_logits = self.lm(sample_p, 1 - labels)
 
         s_loss = self.ce_crit(s_logits, 1 - labels)
-        # c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
-        c_mean = c_logits.mean()
-        c_loss = c_mean if c_mean > 0 else 0 * c_mean
+        c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
         l_loss = self.ce_crit(l_logits.reshape(-1, l_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
 
-        loss = 1.0 * (w * self.hparams.alpha * s_loss + w * self.hparams.beta * c_loss + self.hparams.gamma * l_loss) #TODO:
-        loginfo = {"s": s_loss, "c": c_loss, "l": l_loss}
+        loss = w * self.hparams.alpha * s_loss + w * self.hparams.beta * c_loss + self.hparams.gamma * l_loss
+        loginfo = {"S": s_loss, "C": c_loss, "L": l_loss, "tau": tau}
         return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
 
         # # optimize discriminator
