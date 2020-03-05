@@ -84,6 +84,7 @@ def collate_warmup(batch_samples):
 
 def collate_optimize(batch_samples):
     sentences, labels = zip(*batch_samples)
+    # aligned_sentences, _, _ = align(add_borders(sentences, end=EOS_ID), PAD_ID)
     aligned_sentences, _, _ = align(sentences, PAD_ID)
     return (
         pth_tensor(aligned_sentences, torch.long),
