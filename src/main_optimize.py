@@ -92,7 +92,7 @@ class GenerationTuner(pl.LightningModule):
         tau = self.tau ** p
         return tau, w
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
+    def training_step(self, batch, batch_idx):#, optimizer_idx):
         x, labels = batch
         tau, w = self.get_current_w()
         # optimize generator with estimators
