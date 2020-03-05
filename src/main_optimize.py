@@ -107,9 +107,9 @@ class GenerationTuner(pl.LightningModule):
         c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
         l_loss = self.ce_crit(l_logits.reshape(-1, l_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
 
-        loss = w * (self.hparams.alpha * s_loss + self.hparams.beta * c_loss + self.hparams.gamma * l_loss)
+        loss = 1.0 * (w * self.hparams.alpha * s_loss + self.hparams.beta * c_loss + self.hparams.gamma * l_loss) #TODO:
         loginfo = {"s": s_loss, "c": c_loss, "l": l_loss}
-        return {"loss": 1.0 * loss, "progress_bar": loginfo, "log": loginfo} #TODO:
+        return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
 
         # # optimize discriminator
         # if optimizer_idx == 1:
@@ -225,7 +225,7 @@ if __name__ == "__main__":
     args = fetch_args()
 
     if args.dataset == "yelp":
-        args.epochs = 20
+        args.epochs = 10
         args.batch_size = 200
     else:
         raise ValueError
