@@ -39,9 +39,10 @@ class PretrainModel(pl.LightningModule):
         self.mse_crit = nn.MSELoss()
 
         self.flags = {"cls": True, "mat": True, "lm": True}
-        self.best_eval = {"cls": float("inf"), "mat": float("inf"), "lm": float("inf")}
         self.named_models = {"cls": self.classifier, "mat": self.matcher, "lm": self.lm}
-    
+        self.best_eval = {name: float("inf") if self.flags[name] else 0. for name in self.flags}
+                
+
     def forward(self, x, noise_x_1, noise_x_2):
         # classification
         s_logits = self.classifier(x) if self.flags["cls"] else None
