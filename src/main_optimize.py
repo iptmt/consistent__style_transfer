@@ -179,7 +179,7 @@ if __name__ == "__main__":
 
     if args.dataset == "yelp":
         args.epochs = 10
-        args.batch_size = 200
+        args.batch_size = 256
     else:
         raise ValueError
 
