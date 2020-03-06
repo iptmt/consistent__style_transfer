@@ -1,11 +1,10 @@
 #!/bin/bash
 
 dataset=$1
-# basedir=/code/qwh/model_agnostic_ST # default .
 basedir=.
 
 # prepare working directories
-for dir in "$basedir"/data "$basedir"/dump "$basedir"/output "$basedir"/log
+for dir in "$basedir"/data "$basedir"/dump "$basedir"/log
 do
     if [ ! -f "$dir" ]; then
         mkdir $dir
@@ -14,6 +13,10 @@ do
         mkdir "$dir"/"$dataset"
     fi
 done
+
+if [ ! -f "$basedir"/output ]: then
+    mkdir "$basedir"/output
+fi
 
 # prepare evaluate directories
 if [ ! -f "$basedir"/evaluate/eval_dump ]; then
