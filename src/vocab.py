@@ -16,6 +16,7 @@ class BPETokenizer:
             self.tokenizer = CharBPETokenizer()
             self.tokenizer.train(text_list, vocab_size=vocab_size,
                                  min_frequency=2, special_tokens=[PAD, BOS, EOS])
+            self.tokenizer.add_special_tokens([PAD, BOS, EOS])
         else:
             self.tokenizer = None
 
@@ -39,6 +40,7 @@ class BPETokenizer:
     def load(cls, vocab, merges):
         tkz = cls(None, None, lazy=True)
         tkz.tokenizer = CharBPETokenizer(vocab, merges)
+        tkz.tokenizer.add_special_tokens([PAD, BOS, EOS])
         return tkz
  
     def __len__(self):
@@ -61,3 +63,5 @@ if __name__ == "__main__":
         tkz.save(path=f"../dump/{dataset}", file_name=f"{dataset}")
 
     tkz = BPETokenizer.load(f"../dump/{dataset}/{dataset}-vocab.json", f"../dump/{dataset}/{dataset}-merges.txt")
+
+    print(tkz.decode([0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0]))

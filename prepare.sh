@@ -14,7 +14,7 @@ do
     fi
 done
 
-if [ ! -f "$basedir"/output ]: then
+if [ ! -f "$basedir"/output ]; then
     mkdir "$basedir"/output
 fi
 
