@@ -37,9 +37,10 @@ class WarmupModel(pl.LightningModule):
         # denoise
         dn_logits = self.generator(nx, labels, x.size(1))
 
-        with torch.no_grad():
-            x_tsf = self.generator(x, 1 - labels).argmax(-1)
-        bk_logits = self.generator(x_tsf, labels, x.size(1))
+        # with torch.no_grad():
+        #     x_tsf = self.generator(x, 1 - labels).argmax(-1)
+        # bk_logits = self.generator(x_tsf, labels, x.size(1))
+        bk_logits = None
 
         return dn_logits, bk_logits 
     
@@ -51,7 +52,8 @@ class WarmupModel(pl.LightningModule):
         nx, x, labels = batch
         dn_logits, bk_logits = self.forward(nx, labels, x)
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
-        bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
+        # bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
+        bk_loss = 0.
 
         loginfo = {"dn_loss": dn_loss, "bk_loss": bk_loss}
         return {"loss": dn_loss + bk_loss, "progress_bar": loginfo, "log": loginfo}
@@ -60,7 +62,8 @@ class WarmupModel(pl.LightningModule):
         nx, x, labels = batch
         dn_logits, bk_logits = self.forward(nx, labels, x)
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
-        bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
+        # bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
+        bk_loss = 0.
         return {"loss": dn_loss.item() + bk_loss.item()}
     
     def validation_end(self, outputs):
