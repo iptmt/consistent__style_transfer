@@ -115,7 +115,7 @@ class GenerationTuner(pl.LightningModule):
         l_loss = self.soft_ce(l_logits, sample_p)
 
         # loss = w * self.hparams.alpha * s_loss + w * self.hparams.beta * c_loss + self.hparams.gamma * l_loss
-        loss = l_loss + c_loss + w * self.hparams.alpha * s_loss
+        loss = l_loss + c_loss + self.hparams.alpha * s_loss
         loginfo = {"S": s_loss, "C": c_loss, "L": l_loss, "tau": tau}
         return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
 
@@ -162,7 +162,7 @@ class GenerationTuner(pl.LightningModule):
     
     def test_step(self, batch, batch_idx):
         x, labels = batch
-        logits = self.generator(x, labels, None)
+        logits = self.generator(x, 1 - labels, None)
         return {
             "ori": x.cpu().numpy().tolist(),
             "tsf": logits.argmax(-1).cpu().numpy().tolist(),
