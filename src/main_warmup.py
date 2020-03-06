@@ -10,7 +10,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TensorBoardLogger
 from pytorch_lightning.callbacks import EarlyStopping
 
-from model.seq2seq import RNNSearch
+from model.transformer import DenoiseTransformer
 
 from vocab import BPETokenizer
 from loader import StyleDataset, load_s2l, collate_warmup
@@ -25,8 +25,7 @@ class WarmupModel(pl.LightningModule):
         self.vocab = BPETokenizer.load(f"{args.dump_dir}/{args.dataset}/{args.dataset}-vocab.json",
                                        f"{args.dump_dir}/{args.dataset}/{args.dataset}-merges.txt")
 
-        self.generator = RNNSearch(len(self.vocab), args.d_embed, args.d_enc_hidden, args.d_dec_hidden,
-                                   args.n_enc_layer, args.n_dec_layer, args.n_class, args.p_drop, args.max_len)
+        self.generator = DenoiseTransformer(len(self.vocab), args.n_class, args.max_len)
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
@@ -34,23 +33,23 @@ class WarmupModel(pl.LightningModule):
 
         self.best_eval = float("inf")
  
-    def forward(self, nx, labels, x, max_len):
+    def forward(self, nx, labels, x):
         # denoise
-        dn_logits, _ = self.generator(nx, labels, x, max_len)
+        dn_logits = self.generator(nx, labels, x.size(1))
 
         with torch.no_grad():
-            x_tsf = self.generator(x, 1 - labels, None, None)[0].argmax(-1)
-        bk_logits, _ = self.generator(x_tsf, labels, x, max_len)
+            x_tsf = self.generator(x, 1 - labels).argmax(-1)
+        bk_logits = self.generator(x_tsf, labels, x.size(1))
 
         return dn_logits, bk_logits 
     
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.generator.parameters(), lr=5e-4)
+        optimizer = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
         return optimizer
     
     def training_step(self, batch, batch_idx):
         nx, x, labels = batch
-        dn_logits, bk_logits = self.forward(nx, labels, x, x.size(1))
+        dn_logits, bk_logits = self.forward(nx, labels, x)
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
         bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
@@ -59,7 +58,7 @@ class WarmupModel(pl.LightningModule):
     
     def validation_step(self, batch, batch_idx):
         nx, x, labels = batch
-        dn_logits, bk_logits = self.forward(nx, labels, x, x.size(1))
+        dn_logits, bk_logits = self.forward(nx, labels, x)
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
         bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
         return {"loss": dn_loss.item() + bk_loss.item()}
@@ -109,7 +108,7 @@ if __name__ == "__main__":
     args = fetch_args()
 
     if args.dataset == "yelp":
-        args.epochs = 2
+        args.epochs = 5
         args.batch_size = 256
     else:
         raise ValueError

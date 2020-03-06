@@ -31,7 +31,7 @@ class PretrainModel(pl.LightningModule):
 
         self.classifier = TextCNN(len(self.vocab), n_class=2)
         self.matcher = Matcher(len(self.vocab))
-        self.lm = BiLM(len(self.vocab), n_class=2)
+        self.lm = BiLM(len(self.vocab))
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
@@ -42,7 +42,7 @@ class PretrainModel(pl.LightningModule):
         self.best_eval = {"cls": float("inf"), "mat": float("inf"), "lm": float("inf")}
         self.named_models = {"cls": self.classifier, "mat": self.matcher, "lm": self.lm}
     
-    def forward(self, x, noise_x_1, noise_x_2, label):
+    def forward(self, x, noise_x_1, noise_x_2):
         # classification
         s_logits = self.classifier(x) if self.flags["cls"] else None
 
@@ -50,7 +50,7 @@ class PretrainModel(pl.LightningModule):
         c_logits = self.matcher(noise_x_1, noise_x_2) if self.flags["mat"] else None
 
         # naturalness
-        l_logits = self.lm(x, label) if self.flags["lm"] else None
+        l_logits = self.lm(x) if self.flags["lm"] else None
 
         return s_logits, c_logits, l_logits
     
@@ -62,7 +62,7 @@ class PretrainModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, nx_1, nx_2, label, c_label = batch
 
-        s_logits, c_logits, l_logits = self.forward(x, nx_1, nx_2, label)
+        s_logits, c_logits, l_logits = self.forward(x, nx_1, nx_2)
 
         s_loss = self.ce_crit(s_logits, label) if s_logits is not None else 0.
         c_loss = self.mse_crit(c_logits, c_label) if c_logits is not None else 0.
@@ -75,7 +75,7 @@ class PretrainModel(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, nx_1, nx_2, label, c_label = batch
 
-        s_logits, c_logits, l_logits = self.forward(x, nx_1, nx_2, label)
+        s_logits, c_logits, l_logits = self.forward(x, nx_1, nx_2)
 
         s_loss = self.ce_crit(s_logits, label) if s_logits is not None else 0.
         c_loss = self.mse_crit(c_logits, c_label) if c_logits is not None else 0.
