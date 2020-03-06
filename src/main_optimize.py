@@ -68,11 +68,12 @@ class GenerationTuner(pl.LightningModule):
         #     f_logits = self.disc(sample_p.detach())
         #     return t_logits, f_logits
         # elif optimizer_idx == 0 or optimizer_idx == 2:
-        sample_p = self.generator(x, labels, None, gumbel=False, tau=tau)
-        return self.softmax(sample_p / tau)
+        sample_p = self.generator(x, labels, None, gumbel=True, tau=tau)
+        # return self.softmax(sample_p / tau)
+        return sample_p
  
     def configure_optimizers(self):
-        optimizer_opt = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
+        optimizer_opt = torch.optim.Adam(self.generator.parameters(), lr=1e-5)
         # optimizer_dsc = torch.optim.Adam(self.disc.parameters(), lr=1e-4)
         # optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
         return optimizer_opt#, optimizer_dsc, optimizer_gen
