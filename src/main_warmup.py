@@ -64,7 +64,7 @@ class WarmupModel(pl.LightningModule):
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
         # bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
         bk_loss = 0.
-        return {"loss": dn_loss.item() + bk_loss.item()}
+        return {"loss": dn_loss.item() + bk_loss}
     
     def validation_end(self, outputs):
         losses = np.array([o["loss"] for o in outputs])
