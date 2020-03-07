@@ -77,7 +77,7 @@ class GenerationTuner(pl.LightningModule):
         c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
         l_loss = self.soft_ce(l_logits, sample_p.detach())
 
-        loss = self.hparams.alpha * s_loss + self.hparams.beta * c_loss + self.hparams.gamma * l_loss
+        loss = self.hparams.w_s * s_loss + self.hparams.w_c * c_loss + self.hparams.w_l * l_loss
         loginfo = {"S": s_loss, "C": c_loss, "L": l_loss}
         return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
 
