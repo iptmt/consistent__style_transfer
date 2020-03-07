@@ -59,7 +59,7 @@ class DenoiseTransformer(nn.Module):
         logits = self.proj_to_vocab(self.dropout(output.transpose(0, 1)))
 
         if gumbel:
-            p_sample = F.gumbel_softmax(logits, tau=tau, hard=False)
+            p_sample = F.gumbel_softmax(logits, tau=tau, hard=True)
             return p_sample
         else:
             return logits
