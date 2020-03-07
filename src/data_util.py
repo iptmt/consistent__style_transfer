@@ -40,7 +40,7 @@ def cal_bleu(seqs1, seqs2, vocab):
     bleus = []
     for s1, s2 in zip(seqs1, seqs2):
         bleu = nltk.translate.bleu_score.sentence_bleu(
-            [vocab.ids_to_tokens(s1)], [vocab.ids_to_tokens(s2)]
+            [vocab.ids_to_tokens(s1)], vocab.ids_to_tokens(s2)
         )
         bleus.append(bleu)
     return bleus

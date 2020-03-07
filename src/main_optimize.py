@@ -45,7 +45,6 @@ class GenerationTuner(pl.LightningModule):
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
-        self.bce_crit = nn.BCEWithLogitsLoss()
         self.ce_crit = nn.CrossEntropyLoss()
         self.mse_crit = nn.MSELoss()
         
