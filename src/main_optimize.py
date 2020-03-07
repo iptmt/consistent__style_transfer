@@ -55,7 +55,9 @@ class GenerationTuner(pl.LightningModule):
         self.anneal_steps = args.epochs * n_batch
     
     def forward(self, x, labels, tau):
-        sample_p = self.generator(x, labels, None, gumbel=True, tau=tau)
+        # sample_p = self.generator(x, labels, None, gumbel=True, tau=tau)
+        sample_p = self.generator(x, labels, None)
+        sample_p = self.softmax(sample_p / tau)
         return sample_p
  
     def configure_optimizers(self):
@@ -84,7 +86,8 @@ class GenerationTuner(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, labels = batch
 
-        sample_p = self.generator(x, 1 - labels, None, gumbel=True, tau=self.tau)
+        # sample_p = self.generator(x, 1 - labels, None, gumbel=True, tau=self.tau)
+        sample_p = self.forward(x, 1 - labels, self.tau)
 
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x) 
@@ -106,7 +109,7 @@ class GenerationTuner(pl.LightningModule):
     
     def test_step(self, batch, batch_idx):
         x, labels = batch
-        logits = self.generator(x, 1 - labels, None)
+        logits = self.forward(x, 1 - labels, self.tau)
         return {
             "ori": x.cpu().numpy().tolist(),
             "tsf": logits.argmax(-1).cpu().numpy().tolist(),
@@ -177,7 +180,7 @@ if __name__ == "__main__":
     args = fetch_args()
 
     if args.dataset == "yelp":
-        args.epochs = 10
+        args.epochs = 20
         args.batch_size = 256
     else:
         raise ValueError
