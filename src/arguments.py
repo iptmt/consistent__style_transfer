@@ -26,9 +26,9 @@ def fetch_args():
     parser.add_argument('--n_class', type=int, default=2, help="number of styles")
     parser.add_argument('--p_drop', type=float, default=0.1, help="dropout rate")
 
-    parser.add_argument('--alpha', type=float, default=0.1, help="weight of CP")
-    parser.add_argument('--beta', type=float, default=1.0, help="weight of NT")
-    parser.add_argument('--gamma', type=float, default=1.0, help="weight of STI")
+    parser.add_argument('--w_s', type=float, default=0.01, help="weight of CP")
+    parser.add_argument('--w_c', type=float, default=1.0, help="weight of NT")
+    parser.add_argument('--w_l', type=float, default=0.1, help="weight of STI")
 
     parser.add_argument('--tau', type=float, default=0.1, help="annealling temperature")
     parser.add_argument('--gap', type=float, default=0., help="annealling temperature")
