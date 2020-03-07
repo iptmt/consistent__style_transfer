@@ -57,7 +57,8 @@ def collate_pretrain(vocab, w2v):
         aligned_noised_sentences_1, _, _ = align(noised_sentences_1, PAD_ID)
         aligned_noised_sentences_2, _, _ = align(noised_sentences_2, PAD_ID)
 
-        c_label = w2v.cal_wmd_label(noised_sentences_1, noised_sentences_2, vocab)
+        # c_label = w2v.cal_wmd_label(noised_sentences_1, noised_sentences_2, vocab)
+        c_label = cal_bleu(noised_sentences_1, noised_sentences_2, vocab)
 
         return (
             pth_tensor(aligned_sentences, torch.long),
