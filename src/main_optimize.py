@@ -35,6 +35,8 @@ class GenerationTuner(pl.LightningModule):
         self.matcher = Matcher(len(self.vocab))
         self.lm = MLM(len(self.vocab), args.n_class)
 
+        self.disc = RelGAN_D(len(self.vocab))
+
         self.generator = DenoiseTransformer(len(self.vocab), args.n_class, args.max_len)
         
         # reload pretrained models
@@ -48,6 +50,7 @@ class GenerationTuner(pl.LightningModule):
 
         self.ce_crit = nn.CrossEntropyLoss()
         self.mse_crit = nn.MSELoss()
+        self.bce_crit = nn.BCEWithLogitsLoss()
         
         self.tau = args.tau
         self.softmax = nn.Softmax(-1)
@@ -56,38 +59,69 @@ class GenerationTuner(pl.LightningModule):
         self.anneal_steps = args.epochs * n_batch
     
     def forward(self, x, labels, tau):
-        # sample_p = self.generator(x, labels, None, gumbel=True, tau=tau)
         sample_p = self.generator(x, labels, None)
         sample_p = self.softmax(sample_p / tau)
         return sample_p
  
     def configure_optimizers(self):
-        optimizer_opt = torch.optim.Adam(self.generator.parameters(), lr=1e-5)
-        return optimizer_opt
+        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-5)
+        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=1e-5)
+        return optimizer_gen, optimizer_adv
+    
+    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx):
+        if optimizer_idx == 0:
+            optimizer.step()
+            optimizer.zero_grad()
+
+        # update discriminator opt every 5 steps
+        if optimizer_idx == 1:
+            if batch_idx % 5 == 0 :
+                optimizer.step()
+                optimizer.zero_grad()
     
     def soft_ce(self, s, t):
         return - (t * F.log_softmax(s, -1)).sum(-1).mean()
+    
+    def adv_label(self, logits, value):
+        return logits.new_full(logits.shape, value)
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
-        sample_p = self.forward(x, 1 - labels, self.tau)
 
-        s_logits = self.classifier(sample_p)
-        c_logits = self.matcher(sample_p, x) 
-        l_logits = self.lm(sample_p, 1 - labels)
+        if optimizer_idx == 0:
+            sample_p = self.forward(x, 1 - labels, self.tau)
 
-        s_loss = self.ce_crit(s_logits, 1 - labels)
-        c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
-        l_loss = self.soft_ce(l_logits, sample_p)
+            s_logits = self.classifier(sample_p)
+            c_logits = self.matcher(sample_p, x) 
+            l_logits = self.lm(sample_p, 1 - labels)
 
-        loss = self.hparams.w_s * s_loss + self.hparams.w_c * c_loss + self.hparams.w_l * l_loss
-        loginfo = {"S": s_loss, "C": c_loss, "L": l_loss}
-        return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
+            self.disc.eval()
+            adv_logits = self.disc(sample_p)
+
+            s_loss = self.ce_crit(s_logits, 1 - labels)
+            c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
+            l_loss = self.soft_ce(l_logits, sample_p)
+            G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
+
+            loss = G_loss + self.hparams.w_s * s_loss + self.hparams.w_c * c_loss + self.hparams.w_l * l_loss
+            loginfo = {"G": G_loss, "S": s_loss, "C": c_loss, "L": l_loss}
+            return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
+        
+        if optimizer_idx == 1:
+            self.disc.train()
+            t_logits = self.disc(F.one_hot(x, len(self.vocab)).float())
+            with torch.no_grad():
+                x_ = self.forward(x, 1 - labels, self.tau)
+            f_logits = self.disc(x_)
+
+            D_loss = 0.5 * (self.bce_crit(t_logits, self.adv_label(t_logits, 1)) + \
+                self.bce_crit(f_logits, self.adv_label(f_logits, 0)))
+            return {"loss": D_loss, "progress_bar": {"D": D_loss}, "log": {"D": D_loss}}
+
 
     def validation_step(self, batch, batch_idx):
         x, labels = batch
 
-        # sample_p = self.generator(x, 1 - labels, None, gumbel=True, tau=self.tau)
         sample_p = self.forward(x, 1 - labels, self.tau)
 
         s_logits = self.classifier(sample_p)
