@@ -68,7 +68,7 @@ class GenerationTuner(pl.LightningModule):
         optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=1e-5)
         return optimizer_gen, optimizer_adv
     
-    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx):
+    def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, second_order_closure=None):
         if optimizer_idx == 0:
             optimizer.step()
             optimizer.zero_grad()
