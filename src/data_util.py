@@ -30,11 +30,6 @@ def align(sentences, pad_value, max_len=None):
     sentences = [sent[:max_len] + [pad_value] * (max_len - len(sent)) for sent in sentences]
     return sentences, lengths, max_len
 
-# def convert_to_str(tensor, vocab):
-#     ids = tensor.cpu().numpy().tolist()
-#     tokens = vocab.IdsToSent(ids, remove_special=False)
-#     return tokens
-
 # cal BLEU
 def cal_bleu(seqs1, seqs2, vocab):
     bleus = []
@@ -68,3 +63,23 @@ def transfer_noise(sentences, p):
         pos = random.randint(0, len(sentences_noise[index]))
         sentences_noise[index].insert(pos, w)
     return sentences_noise
+
+def rand_perm(sentences, p=0.15):
+    sent_lens, long_seq = [], []
+    for sentence in sentences:
+        long_seq += sentence
+        sent_lens.append(len(sentence))
+    ind = (np.random.uniform(size=(len(long_seq))) < p)
+    hint_ids, words = [], []
+    for idx, v in enumerate(ind):
+        if v:
+            hint_ids.append(idx)
+            words.append(long_seq[idx])
+    random.shuffle(words)
+    for idx, id_ in enumerate(hint_ids):
+        long_seq[id_] = words[idx]
+    sentences, end_idx = [], 0
+    for sent_len in sent_lens:
+        sentences.append(long_seq[end_idx: end_idx + sent_len])
+        end_idx += sent_len
+    return sentences

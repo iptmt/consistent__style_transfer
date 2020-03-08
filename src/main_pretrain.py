@@ -10,6 +10,7 @@ from pytorch_lightning.logging import TensorBoardLogger
 from pytorch_lightning.callbacks import EarlyStopping
 
 from model.bilm import BiLM
+from model.mlm import MLM
 from model.match import Matcher
 from model.classifier import TextCNN
 
@@ -31,7 +32,8 @@ class PretrainModel(pl.LightningModule):
 
         self.classifier = TextCNN(len(self.vocab), n_class=2)
         self.matcher = Matcher(len(self.vocab))
-        self.lm = BiLM(len(self.vocab))
+        # self.lm = BiLM(len(self.vocab))
+        self.lm = MLM(len(self.vocab), args.n_class)
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
@@ -43,7 +45,7 @@ class PretrainModel(pl.LightningModule):
         self.best_eval = {name: float("inf") if self.flags[name] else 0. for name in self.flags}
                 
 
-    def forward(self, x, noise_x_1, noise_x_2):
+    def forward(self, x, noise_x_1, noise_x_2, noise_x, label):
         # classification
         s_logits = self.classifier(x) if self.flags["cls"] else None
 
@@ -51,7 +53,7 @@ class PretrainModel(pl.LightningModule):
         c_logits = self.matcher(noise_x_1, noise_x_2) if self.flags["mat"] else None
 
         # naturalness
-        l_logits = self.lm(x) if self.flags["lm"] else None
+        l_logits = self.lm(noise_x, label) if self.flags["lm"] else None
 
         return s_logits, c_logits, l_logits
     
@@ -61,9 +63,9 @@ class PretrainModel(pl.LightningModule):
         return optimizer
     
     def training_step(self, batch, batch_idx):
-        x, nx_1, nx_2, label, c_label = batch
+        x, nx_1, nx_2, nx, label, c_label = batch
 
-        s_logits, c_logits, l_logits = self.forward(x, nx_1, nx_2)
+        s_logits, c_logits, l_logits = self.forward(x, nx_1, nx_2, nx, label)
 
         s_loss = self.ce_crit(s_logits, label) if s_logits is not None else 0.
         c_loss = self.mse_crit(c_logits, c_label) if c_logits is not None else 0.
@@ -74,9 +76,9 @@ class PretrainModel(pl.LightningModule):
         return {'loss': s_loss + c_loss + l_loss, 'progress_bar': log_info, 'log': log_info}
     
     def validation_step(self, batch, batch_idx):
-        x, nx_1, nx_2, label, c_label = batch
+        x, nx_1, nx_2, nx, label, c_label = batch
 
-        s_logits, c_logits, l_logits = self.forward(x, nx_1, nx_2)
+        s_logits, c_logits, l_logits = self.forward(x, nx_1, nx_2, nx, label)
 
         s_loss = self.ce_crit(s_logits, label) if s_logits is not None else 0.
         c_loss = self.mse_crit(c_logits, c_label) if c_logits is not None else 0.
