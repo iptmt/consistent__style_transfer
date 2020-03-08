@@ -14,6 +14,7 @@ from model.transformer import DenoiseTransformer
 from model.classifier import TextCNN
 from model.match import Matcher
 from model.bilm import BiLM
+from model.mlm import MLM
 from model.discriminator import RelGAN_D
 
 from vocab import BPETokenizer
@@ -32,7 +33,7 @@ class GenerationTuner(pl.LightningModule):
         # construct new models
         self.classifier = TextCNN(len(self.vocab), n_class=2)
         self.matcher = Matcher(len(self.vocab))
-        self.lm = BiLM(len(self.vocab))
+        self.lm = MLM(len(self.vocab), args.n_class)
 
         self.generator = DenoiseTransformer(len(self.vocab), args.n_class, args.max_len)
         
