@@ -192,18 +192,14 @@ def construct_trainer(args):
                                version=args.restore_version)
     checkpoint = ModelCheckpoint(filepath=args.task_dump_dir,
                                  save_weights_only=False,
-                                 save_top_k=1,
+                                 save_top_k=5,
                                  verbose=0,
                                  monitor='val_loss',
                                  mode='min',
                                  prefix=STAGE)
-    early_stop = EarlyStopping(monitor="val_loss",
-                               patience=2,
-                               mode="min")
     trainer = Trainer(logger=logger,
                       gradient_clip_val=1.0,
                       checkpoint_callback=checkpoint,
-                      early_stop_callback=early_stop,
                       max_epochs=args.epochs,
                       gpus=args.device)
     return trainer        
@@ -215,7 +211,7 @@ if __name__ == "__main__":
     args = fetch_args()
 
     if args.dataset == "yelp":
-        args.epochs = 20
+        args.epochs = 10
         args.batch_size = 256
     else:
         raise ValueError

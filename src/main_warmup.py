@@ -34,15 +34,8 @@ class WarmupModel(pl.LightningModule):
         self.best_eval = float("inf")
  
     def forward(self, nx, labels, x):
-        # denoise
         dn_logits = self.generator(nx, labels, x.size(1))
-
-        # with torch.no_grad():
-        #     x_tsf = self.generator(x, 1 - labels).argmax(-1)
-        # bk_logits = self.generator(x_tsf, labels, x.size(1))
-        bk_logits = None
-
-        return dn_logits, bk_logits 
+        return dn_logits
     
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
@@ -50,21 +43,17 @@ class WarmupModel(pl.LightningModule):
     
     def training_step(self, batch, batch_idx):
         nx, x, labels = batch
-        dn_logits, bk_logits = self.forward(nx, labels, x)
+        dn_logits = self.forward(nx, labels, x)
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
-        # bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
-        bk_loss = 0.
 
-        loginfo = {"dn_loss": dn_loss, "bk_loss": bk_loss}
-        return {"loss": dn_loss + bk_loss, "progress_bar": loginfo, "log": loginfo}
+        loginfo = {"dn_loss": dn_loss}
+        return {"loss": dn_loss, "progress_bar": loginfo, "log": loginfo}
     
     def validation_step(self, batch, batch_idx):
         nx, x, labels = batch
-        dn_logits, bk_logits = self.forward(nx, labels, x)
+        dn_logits = self.forward(nx, labels, x)
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
-        # bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
-        bk_loss = 0.
-        return {"loss": dn_loss.item() + bk_loss}
+        return {"loss": dn_loss.item()}
     
     def validation_end(self, outputs):
         losses = np.array([o["loss"] for o in outputs])
