@@ -30,7 +30,7 @@ def fetch_args():
     parser.add_argument('--w_c', type=float, default=1.0, help="weight of NT")
     parser.add_argument('--w_l', type=float, default=1.0, help="weight of STI")
 
-    parser.add_argument('--tau', type=float, default=0.1, help="annealling temperature")
+    parser.add_argument('--tau', type=float, default=0.01, help="annealling temperature")
     parser.add_argument('--gap', type=float, default=0., help="annealling temperature")
 
     # args for training options
