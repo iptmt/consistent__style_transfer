@@ -64,8 +64,8 @@ class GenerationTuner(pl.LightningModule):
         return sample_p
  
     def configure_optimizers(self):
-        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=3e-5)
-        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=3e-5)
+        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-5)
+        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=1e-5)
         return optimizer_gen, optimizer_adv
     
     def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, second_order_closure=None):
@@ -87,9 +87,10 @@ class GenerationTuner(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
+        tau = 0.1 * self.tau ** min([self.global_step / self.anneal_steps, 1.0])
 
         if optimizer_idx == 0:
-            sample_p = self.forward(x, 1 - labels, self.tau)
+            sample_p = self.forward(x, 1 - labels, tau)
 
             s_logits = self.classifier(sample_p)
             c_logits = self.matcher(sample_p, x) 
@@ -111,7 +112,7 @@ class GenerationTuner(pl.LightningModule):
             self.disc.train()
             t_logits = self.disc(F.one_hot(x, len(self.vocab)).float())
             with torch.no_grad():
-                x_ = self.forward(x, 1 - labels, self.tau)
+                x_ = self.forward(x, 1 - labels, tau)
             f_logits = self.disc(x_)
 
             D_loss = 0.5 * (self.bce_crit(t_logits, self.adv_label(t_logits, 1)) + \
@@ -123,6 +124,7 @@ class GenerationTuner(pl.LightningModule):
         x, labels = batch
 
         sample_p = self.forward(x, 1 - labels, self.tau)
+        sample_p = sample_p.argmax(-1)
 
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x) 
