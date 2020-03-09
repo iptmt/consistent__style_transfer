@@ -198,6 +198,7 @@ def construct_trainer(args):
                                  mode='min',
                                  prefix=STAGE)
     trainer = Trainer(logger=logger,
+                      early_stop_callback=False,
                       gradient_clip_val=1.0,
                       checkpoint_callback=checkpoint,
                       max_epochs=args.epochs,
