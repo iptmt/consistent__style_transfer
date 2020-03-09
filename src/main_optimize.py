@@ -192,7 +192,7 @@ def construct_trainer(args):
                                version=args.restore_version)
     checkpoint = ModelCheckpoint(filepath=args.task_dump_dir,
                                  save_weights_only=False,
-                                 save_top_k=1,
+                                 save_top_k=5,
                                  verbose=0,
                                  monitor='val_loss',
                                  mode='min',
