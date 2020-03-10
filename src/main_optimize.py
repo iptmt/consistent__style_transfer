@@ -86,8 +86,8 @@ class GenerationTuner(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
-        w = min([self.global_step / self.anneal_steps, 1.0])
-        # w = 1.0
+        # w = min([self.global_step / self.anneal_steps, 1.0])
+        w = 1.0
 
         if optimizer_idx == 0:
             sample_p = self.forward(x, 1 - labels, self.tau)
