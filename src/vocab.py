@@ -15,7 +15,7 @@ class BPETokenizer:
         if not lazy:
             self.tokenizer = CharBPETokenizer()
             self.tokenizer.train(text_list, vocab_size=vocab_size,
-                                 min_frequency=2, special_tokens=[PAD, BOS, EOS, "<unk>"])
+                                 special_tokens=[PAD, BOS, EOS, "<unk>"])
             self.tokenizer.add_special_tokens([PAD, BOS, EOS])
         else:
             self.tokenizer = None
