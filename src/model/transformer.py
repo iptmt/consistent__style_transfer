@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 class DenoiseTransformer(nn.Module):
     def __init__(self, n_vocab, n_class, seq_max_len, d_model=512, n_head=8, d_ffw=1024,
-                       n_enc_layer=4, n_dec_layer=6, p_dropout=0.1):
+                       n_enc_layer=4, n_dec_layer=8, p_dropout=0.1):
         super().__init__()
 
         self.token_embedding = nn.Embedding(n_vocab, d_model)
