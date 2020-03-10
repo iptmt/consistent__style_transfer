@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 class DenoiseTransformer(nn.Module):
     def __init__(self, n_vocab, n_class, seq_max_len, d_model=512, n_head=8, d_ffw=1024,
-                       n_enc_layer=4, n_dec_layer=8, p_dropout=0.1):
+                       n_enc_layer=4, n_dec_layer=2, n_hops=4, p_dropout=0.1):
         super().__init__()
 
         self.token_embedding = nn.Embedding(n_vocab, d_model)
@@ -28,7 +28,9 @@ class DenoiseTransformer(nn.Module):
         )
 
         self.proj_to_vocab = nn.Linear(d_model, n_vocab)
+        self.norm = LayerNorm(d_model)
 
+        self.n_hop = n_hops
         self.n_vocab = n_vocab
         self.max_len = seq_max_len
 
@@ -44,19 +46,23 @@ class DenoiseTransformer(nn.Module):
     def decoder_embed(self, label, max_len):
         E_s = self.style_embedding(label).unsqueeze(1)
         E_p = self.posit_embedding(torch.arange(max_len, device=label.device).long()).unsqueeze(0)
-        return E_s + E_p
+        return E_s, E_p
     
     def forward(self, x, label, max_len=None, gumbel=False, tau=1.0):
         max_len = max_len if max_len is not None else self.max_len
 
         x = self.dropout(self.encoder_embed(x))
-        lb = self.decoder_embed(label, max_len)
+        y, pos_enc = self.decoder_embed(label, max_len)
 
         memory = self.encoder(x.transpose(0, 1))
  
-        output = self.decoder(lb.transpose(0, 1), memory)
+        y, pos_enc = y.transpose(0, 1), pos_enc.transpose(0, 1)
 
-        logits = self.proj_to_vocab(self.dropout(output.transpose(0, 1)))
+        for _ in range(self.n_hop):
+            y = self.norm(y + pos_enc)
+            y = self.decoder(y, memory)
+
+        logits = self.proj_to_vocab(self.dropout(y.transpose(0, 1)))
 
         if gumbel:
             p_sample = F.gumbel_softmax(logits, tau=tau, hard=False)
