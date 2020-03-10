@@ -9,7 +9,6 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TensorBoardLogger
 from pytorch_lightning.callbacks import EarlyStopping
 
-from model.bilm import BiLM
 from model.mlm import MLM
 from model.match import Matcher
 from model.classifier import TextCNN
