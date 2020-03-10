@@ -9,7 +9,7 @@ lengths = []
 words = set()
 length = dict()
 
-for d in ("style.train.0",):
+for d in ("style.train.0", "style.train.1"):
     with open(base_dir + d, 'r', encoding='utf-8') as f:
         for l in f:
             ws = l.split()

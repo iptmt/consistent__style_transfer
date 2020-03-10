@@ -63,5 +63,3 @@ if __name__ == "__main__":
         tkz.save(path=f"../dump/{dataset}", file_name=f"{dataset}")
 
     tkz = BPETokenizer.load(f"../dump/{dataset}/{dataset}-vocab.json", f"../dump/{dataset}/{dataset}-merges.txt")
-
-    print(tkz.decode([0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0]))
