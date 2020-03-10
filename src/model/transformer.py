@@ -17,10 +17,10 @@ class DenoiseTransformer(nn.Module):
         self.posit_embedding = nn.Embedding(100, d_model)
         self.style_embedding = nn.Embedding(n_class, d_model)
 
-        self.encoder = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(d_model=d_model, nhead=n_head, dim_feedforward=d_ffw), 
-            num_layers=n_enc_layer
-        )
+        # self.encoder = nn.TransformerEncoder(
+        #     nn.TransformerEncoderLayer(d_model=d_model, nhead=n_head, dim_feedforward=d_ffw), 
+        #     num_layers=n_enc_layer
+        # )
 
         self.decoder = nn.TransformerDecoder(
             DNTransformerDecoderLayer(d_model=d_model, nhead=n_head, dim_feedforward=d_ffw), 
@@ -54,7 +54,8 @@ class DenoiseTransformer(nn.Module):
         x = self.dropout(self.encoder_embed(x))
         y, pos_enc = self.decoder_embed(label, max_len)
 
-        memory = self.encoder(x.transpose(0, 1))
+        # memory = self.encoder(x.transpose(0, 1))
+        memory = x.transpose(0, 1)
  
         y, pos_enc = y.transpose(0, 1), pos_enc.transpose(0, 1)
 
