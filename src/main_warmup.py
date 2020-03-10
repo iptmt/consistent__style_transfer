@@ -103,7 +103,7 @@ if __name__ == "__main__":
         args.epochs = 10
         args.batch_size = 256
     elif args.dataset == "gyafc":
-        args.epochs = 10
+        args.epochs = 20
         args.batch_size = 64
     else:
         raise ValueError
