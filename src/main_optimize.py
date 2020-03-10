@@ -87,6 +87,8 @@ class GenerationTuner(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
+        w = min([self.global_step / self.anneal_steps, 1.0])
+        # w = 1.0
 
         if optimizer_idx == 0:
             sample_p = self.forward(x, 1 - labels, self.tau)
@@ -103,7 +105,7 @@ class GenerationTuner(pl.LightningModule):
             l_loss = self.soft_ce(l_logits, sample_p)
             G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
 
-            loss = G_loss + self.hparams.w_s * s_loss + self.hparams.w_c * c_loss + self.hparams.w_l * l_loss
+            loss = G_loss + w * self.hparams.w_s * s_loss + self.hparams.w_c * c_loss + self.hparams.w_l * l_loss
             loginfo = {"G": G_loss, "S": s_loss, "C": c_loss, "L": l_loss}
             return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
         
@@ -193,7 +195,7 @@ def construct_trainer(args):
                                version=args.restore_version)
     checkpoint = ModelCheckpoint(filepath=args.task_dump_dir,
                                  save_weights_only=False,
-                                 save_top_k=5,
+                                 save_top_k=1,
                                  verbose=0,
                                  monitor='val_loss',
                                  mode='min',
@@ -213,7 +215,7 @@ if __name__ == "__main__":
     args = fetch_args()
 
     if args.dataset == "yelp":
-        args.epochs = 20
+        args.epochs = 10
         args.batch_size = 256
     else:
         raise ValueError

@@ -18,11 +18,6 @@ def fetch_args():
     parser.add_argument('--out_dir', type=str, default=f"{base_dir}/output")
 
     # args for model setting
-    parser.add_argument('--d_embed', type=int, default=128, help="embedding dim for seq2seq")
-    parser.add_argument('--d_enc_hidden', type=int, default=256, help="hidden dim for encoder")
-    parser.add_argument('--d_dec_hidden', type=int, default=512, help="hidden dim for decoder")
-    parser.add_argument('--n_enc_layer', type=int, default=1, help="number of layers of encoder")
-    parser.add_argument('--n_dec_layer', type=int, default=1, help="number of layers of decoder")
     parser.add_argument('--n_class', type=int, default=2, help="number of styles")
     parser.add_argument('--p_drop', type=float, default=0.1, help="dropout rate")
 
@@ -33,7 +28,7 @@ def fetch_args():
     parser.add_argument('--tau', type=float, default=0.01, help="annealling temperature")
     parser.add_argument('--gap', type=float, default=0., help="annealling temperature")
 
-    parser.add_argument('--device', type=str, default="0", help="on all GPUs")
+    parser.add_argument('--device', type=str, default="0", help="device id")
     parser.add_argument('--restore_version', type=int, default=-1, help="version for restore trainer and it's state")
     
     args = parser.parse_args()
