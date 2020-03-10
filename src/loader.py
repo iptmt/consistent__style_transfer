@@ -51,9 +51,6 @@ def collate_pretrain(vocab, w2v):
         noised_sentences_2 = transfer_noise(sentences, p=0.15)
         noised_sentences_3 = rand_perm(sentences, p=0.15)
 
-        # aligned_sentences, _, _ = align(add_borders(sentences, end=EOS_ID), PAD_ID)
-        # aligned_noised_sentences_1, _, _ = align(add_borders(noised_sentences_1, end=EOS_ID), PAD_ID)
-        # aligned_noised_sentences_2, _, _ = align(add_borders(noised_sentences_2, end=EOS_ID), PAD_ID)
         aligned_sentences, _, _ = align(sentences, PAD_ID)
         aligned_noised_sentences_1, _, _ = align(noised_sentences_1, PAD_ID)
         aligned_noised_sentences_2, _, _ = align(noised_sentences_2, PAD_ID)
@@ -76,8 +73,6 @@ def collate_warmup(batch_samples):
     sentences, labels = zip(*batch_samples)
     noised_sentences = transfer_noise(sentences, p=0.1)
 
-    # aligned_sentences, _, _ = align(add_borders(sentences, end=EOS_ID), PAD_ID)
-    # aligned_noised_sentences, _, _ = align(add_borders(noised_sentences, end=EOS_ID), PAD_ID)
     aligned_sentences, _, _ = align(sentences, PAD_ID)
     aligned_noised_sentences, _, _ = align(noised_sentences, PAD_ID)
     return (
@@ -88,7 +83,6 @@ def collate_warmup(batch_samples):
 
 def collate_optimize(batch_samples):
     sentences, labels = zip(*batch_samples)
-    # aligned_sentences, _, _ = align(add_borders(sentences, end=EOS_ID), PAD_ID)
     aligned_sentences, _, _ = align(sentences, PAD_ID)
     return (
         pth_tensor(aligned_sentences, torch.long),

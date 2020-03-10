@@ -1,6 +1,5 @@
 import os
 import copy
-import nltk
 import torch
 import random
 
@@ -29,16 +28,6 @@ def align(sentences, pad_value, max_len=None):
     lengths = [len(sent[:max_len]) for sent in sentences]
     sentences = [sent[:max_len] + [pad_value] * (max_len - len(sent)) for sent in sentences]
     return sentences, lengths, max_len
-
-# cal BLEU
-def cal_bleu(seqs1, seqs2, vocab):
-    bleus = []
-    for s1, s2 in zip(seqs1, seqs2):
-        bleu = nltk.translate.bleu_score.sentence_bleu(
-            [vocab.ids_to_tokens(s1)], vocab.ids_to_tokens(s2)
-        )
-        bleus.append(bleu)
-    return bleus
 
 def transfer_noise(sentences, p):
     word_bag, sentences_noise, lens = [], [], []
