@@ -16,3 +16,4 @@ settings.json
 *.blg
 *.bbl
 *.tmp
+*.md
