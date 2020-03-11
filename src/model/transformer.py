@@ -10,17 +10,17 @@ import torch.nn.functional as F
 
 class DenoiseTransformer(nn.Module):
     def __init__(self, n_vocab, n_class, seq_max_len, d_model=512, n_head=8, d_ffw=1024,
-                       n_enc_layer=4, n_dec_layer=2, n_hops=4, p_dropout=0.1):
+                       n_enc_layer=4, n_dec_layer=2, n_hop=4, p_dropout=0.1):
         super().__init__()
 
         self.token_embedding = nn.Embedding(n_vocab, d_model)
         self.posit_embedding = nn.Embedding(100, d_model)
         self.style_embedding = nn.Embedding(n_class, d_model)
 
-        # self.encoder = nn.TransformerEncoder(
-        #     nn.TransformerEncoderLayer(d_model=d_model, nhead=n_head, dim_feedforward=d_ffw), 
-        #     num_layers=n_enc_layer
-        # )
+        self.encoder = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(d_model=d_model, nhead=n_head, dim_feedforward=d_ffw), 
+            num_layers=n_enc_layer
+        )
 
         self.decoder = nn.TransformerDecoder(
             DNTransformerDecoderLayer(d_model=d_model, nhead=n_head, dim_feedforward=d_ffw), 
@@ -28,11 +28,10 @@ class DenoiseTransformer(nn.Module):
         )
 
         self.proj_to_vocab = nn.Linear(d_model, n_vocab)
-        self.norm = LayerNorm(d_model)
 
-        self.n_hop = n_hops
         self.n_vocab = n_vocab
         self.max_len = seq_max_len
+        self.n_hop = n_hop
 
         self.dropout = nn.Dropout(p_dropout)
 
@@ -46,21 +45,18 @@ class DenoiseTransformer(nn.Module):
     def decoder_embed(self, label, max_len):
         E_s = self.style_embedding(label).unsqueeze(1)
         E_p = self.posit_embedding(torch.arange(max_len, device=label.device).long()).unsqueeze(0)
-        return E_s, E_p
+        return E_s + E_p
     
     def forward(self, x, label, max_len=None, gumbel=False, tau=1.0):
         max_len = max_len if max_len is not None else self.max_len
 
         x = self.dropout(self.encoder_embed(x))
-        y, pos_enc = self.decoder_embed(label, max_len)
+        y = self.decoder_embed(label, max_len)
+        y = y.transpose(0, 1)
 
-        # memory = self.encoder(x.transpose(0, 1))
-        memory = x.transpose(0, 1)
- 
-        y, pos_enc = y.transpose(0, 1), pos_enc.transpose(0, 1)
+        memory = self.encoder(x.transpose(0, 1))
 
         for _ in range(self.n_hop):
-            y = self.norm(y + pos_enc)
             y = self.decoder(y, memory)
 
         logits = self.proj_to_vocab(self.dropout(y.transpose(0, 1)))
