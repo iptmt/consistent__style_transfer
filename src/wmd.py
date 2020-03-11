@@ -37,7 +37,11 @@ class WMDdistance:
             if len(x1) == 0 or len(x2) == 0:
                 label.append(max([float(len(x1)), float(len(x2))]))
             else:
-                label.append(self.cal_wmd(tokenizer.ids_to_tokens(x1), tokenizer.ids_to_tokens(x2)))
+                distance = self.cal_wmd(tokenizer.ids_to_tokens(x1), tokenizer.ids_to_tokens(x2))
+                if distance == float("inf"):
+                    label.append((len(x1) + len(x2)) / 2)
+                else:
+                    label.append(distance)
         return label
 
     def save(self, path):
