@@ -9,8 +9,8 @@ import torch.nn.functional as F
 
 
 class DenoiseTransformer(nn.Module):
-    def __init__(self, n_vocab, n_class, seq_max_len, d_model=512, n_head=8, d_ffw=1024,
-                       n_enc_layer=4, n_dec_layer=2, n_hop=4, p_dropout=0.1):
+    def __init__(self, n_vocab, n_class, seq_max_len, d_model=512, n_head=8,
+                       n_enc_layer=4, n_dec_layer=6, p_dropout=0.1):
         super().__init__()
 
         self.token_embedding = nn.Embedding(n_vocab, d_model)
@@ -18,12 +18,12 @@ class DenoiseTransformer(nn.Module):
         self.style_embedding = nn.Embedding(n_class, d_model)
 
         self.encoder = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(d_model=d_model, nhead=n_head, dim_feedforward=d_ffw), 
+            nn.TransformerEncoderLayer(d_model=d_model, nhead=n_head), 
             num_layers=n_enc_layer
         )
 
         self.decoder = nn.TransformerDecoder(
-            DNTransformerDecoderLayer(d_model=d_model, nhead=n_head, dim_feedforward=d_ffw), 
+            DNTransformerDecoderLayer(d_model=d_model, nhead=n_head), 
             num_layers=n_dec_layer
         )
 
@@ -31,7 +31,6 @@ class DenoiseTransformer(nn.Module):
 
         self.n_vocab = n_vocab
         self.max_len = seq_max_len
-        self.n_hop = n_hop
 
         self.dropout = nn.Dropout(p_dropout)
 
@@ -52,14 +51,12 @@ class DenoiseTransformer(nn.Module):
 
         x = self.dropout(self.encoder_embed(x))
         y = self.decoder_embed(label, max_len)
-        y = y.transpose(0, 1)
 
         memory = self.encoder(x.transpose(0, 1))
 
-        for _ in range(self.n_hop):
-            y = self.decoder(y, memory)
+        output = self.decoder(y.transpose(0, 1), memory)
 
-        logits = self.proj_to_vocab(self.dropout(y.transpose(0, 1)))
+        logits = self.proj_to_vocab(self.dropout(output.transpose(0, 1)))
 
         if gumbel:
             p_sample = F.gumbel_softmax(logits, tau=tau, hard=False)
@@ -69,7 +66,7 @@ class DenoiseTransformer(nn.Module):
 
 
 class DNTransformerDecoderLayer(nn.Module):
-    def __init__(self, d_model, nhead, dim_feedforward, dropout=0.1):
+    def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1):
         super(DNTransformerDecoderLayer, self).__init__()
         self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout)
         self.multihead_attn = MultiheadAttention(d_model, nhead, dropout=dropout)
