@@ -31,7 +31,6 @@ class PretrainModel(pl.LightningModule):
 
         self.classifier = TextCNN(len(self.vocab), n_class=2)
         self.matcher = Matcher(len(self.vocab))
-        # self.lm = BiLM(len(self.vocab))
         self.lm = MLM(len(self.vocab), args.n_class)
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
