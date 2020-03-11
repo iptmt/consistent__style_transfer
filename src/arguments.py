@@ -35,10 +35,10 @@ def fetch_args():
 
     if args.dataset == "yelp":
         args.max_len = 18
-        args.n_samples = 441651
-    elif args.dataset == "gyafc":
-        args.max_len = 28
-        args.n_samples = 103934
+        # args.n_samples = 441651
+    elif args.dataset == "book":
+        args.max_len = 30
+        # args.n_samples = 103934
     else:
         raise ValueError
 

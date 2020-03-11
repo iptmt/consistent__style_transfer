@@ -54,8 +54,8 @@ class GenerationTuner(pl.LightningModule):
         self.tau = args.tau
         self.softmax = nn.Softmax(-1)
 
-        n_batch = math.ceil(args.n_samples / args.batch_size)
-        self.anneal_steps = args.epochs * n_batch
+        # n_batch = math.ceil(args.n_samples / args.batch_size)
+        # self.anneal_steps = args.epochs * n_batch
     
     def forward(self, x, labels, tau):
         sample_p = self.generator(x, labels, None)
@@ -214,8 +214,8 @@ if __name__ == "__main__":
     if args.dataset == "yelp":
         args.epochs = 10
         args.batch_size = 256
-    elif args.dataset == "gyafc":
-        args.batch_size = 64
+    elif args.dataset == "book":
+        args.batch_size = 128
         args.epochs = 10
     else:
         raise ValueError

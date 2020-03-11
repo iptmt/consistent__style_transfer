@@ -150,8 +150,8 @@ if __name__ == "__main__":
     if args.dataset == "yelp":
         args.batch_size = 256
         args.epochs = 10
-    elif args.dataset == "gyafc":
-        args.batch_size = 64
+    elif args.dataset == "book":
+        args.batch_size = 128
         args.epochs = 10
     else:
         raise ValueError
