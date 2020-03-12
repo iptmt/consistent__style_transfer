@@ -23,7 +23,7 @@ class DenoiseTransformer(nn.Module):
         )
 
         self.decoder = nn.TransformerDecoder(
-            nn.TransformerDecoderLayer(d_model=d_model, nhead=n_head), 
+            DNTransformerDecoderLayer(d_model=d_model, nhead=n_head), 
             num_layers=n_dec_layer
         )
 
