@@ -131,7 +131,7 @@ class GenerationTuner(pl.LightningModule):
         c_loss = c_logits.mean()
         l_loss = self.ce_crit(l_logits.reshape(-1, l_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
 
-        return {"loss": (self.ws * s_loss + self.wc * c_loss + self.wl * l_loss).item()}
+        return {"loss": (0.1 * s_loss + c_loss + l_loss).item()}
         
  
     def validation_end(self, outputs):
