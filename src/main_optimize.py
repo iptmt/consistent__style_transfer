@@ -62,8 +62,8 @@ class GenerationTuner(pl.LightningModule):
         return sample_p
  
     def configure_optimizers(self):
-        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-5)
-        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=1e-5)
+        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=3e-5)
+        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=3e-5)
         return optimizer_gen, optimizer_adv
     
     def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, 
@@ -81,14 +81,6 @@ class GenerationTuner(pl.LightningModule):
     def adv_label(self, logits, value):
         return logits.new_full(logits.shape, value)
     
-    def get_style_cutoff(self):
-        peak_step = 2000
-        if self.global_step < peak_step:
-            w = max([self.global_step / peak_step, 0.01])
-        else:
-            w = max([(10000 - self.global_step) / (10000 - peak_step), 0.01])
-        return w
-
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
 
@@ -105,7 +97,7 @@ class GenerationTuner(pl.LightningModule):
             c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
             G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
 
-            loss = G_loss + self.wc * c_loss + self.ws * self.get_style_cutoff() * s_loss
+            loss = G_loss + self.wc * c_loss + self.ws * s_loss
             loginfo = {"G": G_loss, "S": s_loss, "C": c_loss}
             return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
         
@@ -128,11 +120,13 @@ class GenerationTuner(pl.LightningModule):
 
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x) 
+        adv_logits = self.disc(sample_p)
 
         s_loss = self.ce_crit(s_logits, 1 - labels)
-        c_loss = c_logits.mean()
+        c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
+        G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
 
-        return {"loss": (self.ws * s_loss + self.wc * c_loss).item()}
+        return {"loss": (G_loss + self.ws * s_loss + self.wc * c_loss).item()}
         
  
     def validation_end(self, outputs):
