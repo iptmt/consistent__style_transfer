@@ -32,7 +32,7 @@ class GenerationTuner(pl.LightningModule):
         # construct new models
         self.classifier = TextCNN(len(self.vocab), n_class=2)
         self.matcher = Matcher(len(self.vocab))
-        self.lm = MLM(len(self.vocab), args.n_class)
+        # self.lm = MLM(len(self.vocab), args.n_class)
 
         self.disc = RelGAN_D(len(self.vocab))
 
@@ -41,7 +41,7 @@ class GenerationTuner(pl.LightningModule):
         # reload pretrained models
         self.classifier.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/cls.pth"))
         self.matcher.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/mat.pth"))
-        self.lm.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/lm.pth"))
+        # self.lm.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/lm.pth"))
 
         self.generator.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/warmup/G.pth"))
 
@@ -54,7 +54,7 @@ class GenerationTuner(pl.LightningModule):
         self.tau = args.tau
         self.softmax = nn.Softmax(-1)
 
-        self.ws, self.wc, self.wl = args.w_s, args.w_c, args.w_l
+        self.ws, self.wc = args.w_s, args.w_c
     
     def forward(self, x, labels, tau):
         sample_p = self.generator(x, labels, None)
@@ -62,8 +62,8 @@ class GenerationTuner(pl.LightningModule):
         return sample_p
  
     def configure_optimizers(self):
-        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=3e-5)
-        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=3e-5)
+        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-5)
+        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=1e-5)
         return optimizer_gen, optimizer_adv
     
     def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, 
@@ -78,11 +78,16 @@ class GenerationTuner(pl.LightningModule):
                 optimizer.step()
                 optimizer.zero_grad()
     
-    def soft_ce(self, s, t):
-        return - (t * F.log_softmax(s, -1)).sum(-1).mean()
-    
     def adv_label(self, logits, value):
         return logits.new_full(logits.shape, value)
+    
+    def get_style_cutoff(self):
+        peak_step = 2000
+        if self.global_step < peak_step:
+            w = max([self.global_step / peak_step, 0.01])
+        else:
+            w = max([(10000 - self.global_step) / (10000 - peak_step), 0.01])
+        return w
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
@@ -92,18 +97,16 @@ class GenerationTuner(pl.LightningModule):
 
             s_logits = self.classifier(sample_p)
             c_logits = self.matcher(sample_p, x) 
-            l_logits = self.lm(sample_p, 1 - labels)
 
             self.disc.eval()
             adv_logits = self.disc(sample_p)
 
             s_loss = self.ce_crit(s_logits, 1 - labels)
             c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
-            l_loss = self.soft_ce(l_logits, sample_p)
             G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
 
-            loss = G_loss + self.ws * s_loss + self.wc * c_loss + self.wl * l_loss
-            loginfo = {"G": G_loss, "S": s_loss, "C": c_loss, "L": l_loss}
+            loss = G_loss + self.wc * c_loss + self.ws * self.get_style_cutoff() * s_loss
+            loginfo = {"G": G_loss, "S": s_loss, "C": c_loss}
             return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
         
         if optimizer_idx == 1:
@@ -125,13 +128,11 @@ class GenerationTuner(pl.LightningModule):
 
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x) 
-        l_logits = self.lm(sample_p, 1 - labels)
 
         s_loss = self.ce_crit(s_logits, 1 - labels)
         c_loss = c_logits.mean()
-        l_loss = self.ce_crit(l_logits.reshape(-1, l_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
 
-        return {"loss": (0.1 * s_loss + c_loss + l_loss).item()}
+        return {"loss": (self.ws * s_loss + self.wc * c_loss).item()}
         
  
     def validation_end(self, outputs):
@@ -191,7 +192,7 @@ def construct_trainer(args):
                                version=args.restore_version)
     checkpoint = ModelCheckpoint(filepath=args.task_dump_dir,
                                  save_weights_only=True,
-                                 save_top_k=1,
+                                 save_top_k=5,
                                  verbose=0,
                                  monitor='val_loss',
                                  mode='min',
