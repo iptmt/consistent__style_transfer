@@ -218,7 +218,7 @@ if __name__ == "__main__":
         args.epochs = 10
         args.batch_size = 256
     elif args.dataset == "book":
-        args.batch_size = 128
+        args.batch_size = 256
         args.epochs = 10
     else:
         raise ValueError
