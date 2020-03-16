@@ -211,6 +211,9 @@ if __name__ == "__main__":
     if args.dataset == "yelp":
         args.epochs = 10
         args.batch_size = 256
+    elif args.dataset == "shen":
+        args.epochs = 10
+        args.batch_size = 256
     elif args.dataset == "book":
         args.batch_size = 256
         args.epochs = 10

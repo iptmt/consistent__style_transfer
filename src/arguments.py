@@ -34,6 +34,8 @@ def fetch_args():
 
     if args.dataset == "yelp":
         args.max_len = 18
+    elif args.dataset == "shen":
+        args.max_len = 18
     elif args.dataset == "book":
         args.max_len = 30
     else:

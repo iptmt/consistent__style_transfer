@@ -38,7 +38,7 @@ class PretrainModel(pl.LightningModule):
         self.ce_crit = nn.CrossEntropyLoss()
         self.mse_crit = nn.MSELoss()
 
-        self.flags = {"cls": True, "mat": True, "lm": True}
+        self.flags = {"cls": True, "mat": True, "lm": False}
         self.named_models = {"cls": self.classifier, "mat": self.matcher, "lm": self.lm}
         self.best_eval = {name: float("inf") if self.flags[name] else 0. for name in self.flags}
                 
@@ -147,6 +147,9 @@ if __name__ == "__main__":
     args = fetch_args()
 
     if args.dataset == "yelp":
+        args.batch_size = 256
+        args.epochs = 10
+    elif args.dataset == "shen":
         args.batch_size = 256
         args.epochs = 10
     elif args.dataset == "book":
