@@ -72,3 +72,14 @@ def rand_perm(sentences, p=0.15):
         sentences.append(long_seq[end_idx: end_idx + sent_len])
         end_idx += sent_len
     return sentences
+
+def rand_drop(sentences, p=0.1):
+    sentences_ = []
+    for s in sentences:
+        s_ = []
+        ind = (np.random.uniform(size=(len(s))) < p)
+        for idx, v in enumerate(ind):
+            if v:
+                s_.append(s[idx])
+        sentences_.append(s_)
+    return sentences_
