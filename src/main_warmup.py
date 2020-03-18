@@ -95,7 +95,6 @@ def construct_trainer(args):
 
 
 if __name__ == "__main__":
-    # python main_warmup.py --dataset=[dataset] --model_version=[version]
     from arguments import fetch_args
     args = fetch_args()
 

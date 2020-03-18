@@ -84,7 +84,7 @@ class GenerationTuner(pl.LightningModule):
     def training_step(self, batch, batch_idx, optimizer_idx):
         nx, x, labels = batch
 
-        tau = self.tau ** min([1.0, self.global_step / 10000])
+        tau = self.tau ** min([1.0, self.global_step / 17000])
 
         if optimizer_idx == 0:
             sample_p = self.forward(nx, 1 - labels, tau)
@@ -206,7 +206,6 @@ def construct_trainer(args):
 
 
 if __name__ == "__main__":
-    # python main_optimize.py --dataset=[dataset] --mode=train
     from arguments import fetch_args
     args = fetch_args()
 
