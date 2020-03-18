@@ -140,7 +140,7 @@ class GenerationTuner(pl.LightningModule):
     
     def test_step(self, batch, batch_idx):
         _, x, labels = batch
-        logits = self.forward(x, 1 - labels, self.tau)
+        logits = self.generator(x, 1 - labels, None)
         return {
             "ori": x.cpu().numpy().tolist(),
             "tsf": logits.argmax(-1).cpu().numpy().tolist(),
