@@ -83,7 +83,7 @@ def collate_warmup(batch_samples):
 
 def collate_optimize(batch_samples):
     sentences, labels = zip(*batch_samples)
-    noised_sentences = rand_drop(sentences, p=0.1)
+    noised_sentences = transfer_noise(sentences, p=0.1)
 
     aligned_sentences, _, _ = align(sentences, PAD_ID)
     aligned_noised_sentences, _, _ = align(noised_sentences, PAD_ID)
