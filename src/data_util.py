@@ -79,7 +79,7 @@ def rand_drop(sentences, p=0.1):
         s_ = []
         ind = (np.random.uniform(size=(len(s))) < p)
         for idx, v in enumerate(ind):
-            if v:
+            if not v:
                 s_.append(s[idx])
         sentences_.append(s_)
     return sentences_
