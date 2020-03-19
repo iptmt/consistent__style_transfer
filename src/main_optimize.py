@@ -40,7 +40,7 @@ class GenerationTuner(pl.LightningModule):
         self.classifier.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/cls.pth"))
         self.matcher.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/mat.pth"))
         self.denoiser.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/dn.pth"))
-        self.generator.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/warmup/G.pth"))
+        # self.generator.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/warmup/G.pth"))
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
