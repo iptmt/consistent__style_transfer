@@ -57,8 +57,8 @@ class GenerationTuner(pl.LightningModule):
         return sample_p
  
     def configure_optimizers(self):
-        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-5)
-        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=1e-5)
+        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=3e-5)
+        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=3e-5)
         return optimizer_gen, optimizer_adv
     
     def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, 
@@ -79,7 +79,7 @@ class GenerationTuner(pl.LightningModule):
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
 
-        tau = self.tau ** min([1.0, self.global_step / 10000])
+        tau = self.tau ** min([1.0, self.global_step / 20000])
 
         if optimizer_idx == 0:
             sample_p = self.forward(x, 1 - labels, tau)
