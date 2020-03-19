@@ -134,8 +134,10 @@ class GenerationTuner(pl.LightningModule):
         }
     
     def test_step(self, batch, batch_idx):
-        _, x, labels = batch
+        x, labels = batch
         logits = self.generator(x, 1 - labels)
+        if self.hparams.denoise:
+            logits = self.denoiser(logits.argmax(-1), None, 1 - labels)
         return {
             "ori": x.cpu().numpy().tolist(),
             "tsf": logits.argmax(-1).cpu().numpy().tolist(),
