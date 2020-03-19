@@ -53,12 +53,12 @@ class GenerationTuner(pl.LightningModule):
         self.ws, self.wc = args.w_s, args.w_c
     
     def forward(self, x, labels, tau):
-        sample_p = self.generator(x, labels, res_type="gumbel", tau=tau)
+        sample_p = self.generator(x, labels, res_type="softmax", tau=tau)
         return sample_p
  
     def configure_optimizers(self):
-        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=3e-5)
-        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=3e-5)
+        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
+        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=1e-4)
         return optimizer_gen, optimizer_adv
     
     def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, 
