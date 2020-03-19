@@ -49,7 +49,7 @@ def collate_pretrain(vocab, w2v):
 
         noised_sentences_1 = transfer_noise(sentences, p=0.15)
         noised_sentences_2 = transfer_noise(sentences, p=0.15)
-        noised_sentences_3 = rand_perm(sentences, p=0.15)
+        noised_sentences_3 = transfer_noise(sentences, p=0.1)
 
         aligned_sentences, _, _ = align(sentences, PAD_ID)
         aligned_noised_sentences_1, _, _ = align(noised_sentences_1, PAD_ID)

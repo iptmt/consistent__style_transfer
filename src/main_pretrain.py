@@ -9,7 +9,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TensorBoardLogger
 from pytorch_lightning.callbacks import EarlyStopping
 
-from model.mlm import MLM
+from model.gru import DenoiseGRU 
 from model.match import Matcher
 from model.classifier import TextCNN
 
@@ -29,17 +29,17 @@ class PretrainModel(pl.LightningModule):
         self.vocab = BPETokenizer.load(f"{args.dump_dir}/{args.dataset}/{args.dataset}-vocab.json",
                                        f"{args.dump_dir}/{args.dataset}/{args.dataset}-merges.txt")
 
-        self.classifier = TextCNN(len(self.vocab), n_class=2)
+        self.classifier = TextCNN(len(self.vocab), n_class=args.n_class)
         self.matcher = Matcher(len(self.vocab))
-        self.lm = MLM(len(self.vocab), args.n_class)
+        self.denoiser = DenoiseGRU(len(self.vocab), n_class=args.n_class, max_len=args.max_len)
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
         self.ce_crit = nn.CrossEntropyLoss()
         self.mse_crit = nn.MSELoss()
 
-        self.flags = {"cls": True, "mat": True, "lm": False}
-        self.named_models = {"cls": self.classifier, "mat": self.matcher, "lm": self.lm}
+        self.flags = {"cls": True, "mat": True, "dn": True}
+        self.named_models = {"cls": self.classifier, "mat": self.matcher, "dn": self.denoiser}
         self.best_eval = {name: float("inf") if self.flags[name] else 0. for name in self.flags}
                 
 
@@ -50,50 +50,50 @@ class PretrainModel(pl.LightningModule):
         # content matching
         c_logits = self.matcher(noise_x_1, noise_x_2) if self.flags["mat"] else None
 
-        # naturalness
-        l_logits = self.lm(noise_x, label) if self.flags["lm"] else None
+        # denoising
+        dn_logits = self.denoiser(noise_x, x, label) if self.flags["dn"] else None
 
-        return s_logits, c_logits, l_logits
+        return s_logits, c_logits, dn_logits
     
     def configure_optimizers(self):
-        params = list(self.classifier.parameters()) + list(self.matcher.parameters()) + list(self.lm.parameters())
+        params = list(self.classifier.parameters()) + list(self.matcher.parameters()) + list(self.denoiser.parameters())
         optimizer = torch.optim.Adam(params, lr=1e-4)
         return optimizer
     
     def training_step(self, batch, batch_idx):
         x, nx_1, nx_2, nx, label, c_label = batch
 
-        s_logits, c_logits, l_logits = self.forward(x, nx_1, nx_2, nx, label)
+        s_logits, c_logits, dn_logits = self.forward(x, nx_1, nx_2, nx, label)
 
         s_loss = self.ce_crit(s_logits, label) if s_logits is not None else 0.
         c_loss = self.mse_crit(c_logits, c_label) if c_logits is not None else 0.
-        l_loss = self.ce_crit(l_logits.reshape(-1, l_logits.size(-1)), x.reshape(-1)) if l_logits is not None else 0.
+        dn_loss = self.ce_crit(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1)) if dn_logits is not None else 0.
 
-        log_info = {"s_loss": s_loss, "c_loss": c_loss, "l_loss": l_loss}
+        log_info = {"s_loss": s_loss, "c_loss": c_loss, "dn_loss": dn_loss}
 
-        return {'loss': s_loss + c_loss + l_loss, 'progress_bar': log_info, 'log': log_info}
+        return {'loss': s_loss + c_loss + dn_loss, 'progress_bar': log_info, 'log': log_info}
     
     def validation_step(self, batch, batch_idx):
         x, nx_1, nx_2, nx, label, c_label = batch
 
-        s_logits, c_logits, l_logits = self.forward(x, nx_1, nx_2, nx, label)
+        s_logits, c_logits, dn_logits = self.forward(x, nx_1, nx_2, nx, label)
 
         s_loss = self.ce_crit(s_logits, label) if s_logits is not None else 0.
         c_loss = self.mse_crit(c_logits, c_label) if c_logits is not None else 0.
-        l_loss = self.ce_crit(l_logits.reshape(-1, l_logits.size(-1)), x.reshape(-1)) if l_logits is not None else 0.
+        dn_loss = self.ce_crit(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1)) if dn_logits is not None else 0.
         
         return {
-            's_loss': s_loss, "c_loss": c_loss, "l_loss": l_loss
+            's_loss': s_loss, "c_loss": c_loss, "dn_loss": dn_loss
         }
     
     def validation_end(self, outputs):
-        s_loss, c_loss, l_loss = [], [], []
+        s_loss, c_loss, dn_loss = [], [], []
         for o in outputs:
             s_loss.append(o["s_loss"])
             c_loss.append(o["c_loss"])
-            l_loss.append(o["l_loss"])
-        s_loss, c_loss, l_loss = sum(s_loss)/len(s_loss), sum(c_loss)/len(c_loss), sum(l_loss)/len(l_loss)
-        for name, loss in [("cls", s_loss), ("mat", c_loss), ("lm", l_loss)]:
+            dn_loss.append(o["dn_loss"])
+        s_loss, c_loss, dn_loss = sum(s_loss)/len(s_loss), sum(c_loss)/len(c_loss), sum(dn_loss)/len(dn_loss)
+        for name, loss in [("cls", s_loss), ("mat", c_loss), ("dn", dn_loss)]:
             if self.flags[name]:
                 if self.best_eval[name] < loss:
                     self.flags[name] = False
@@ -103,7 +103,7 @@ class PretrainModel(pl.LightningModule):
         val_loss = sum(list(self.best_eval.values()))
         print(f"CLS: {self.flags['cls']}-{self.best_eval['cls']}\n" + \
               f"MAT: {self.flags['mat']}-{self.best_eval['mat']}\n" + \
-              f"LM: {self.flags['lm']}-{self.best_eval['lm']}\n" +\
+              f"DN: {self.flags['dn']}-{self.best_eval['dn']}\n" +\
               f"val_loss: {val_loss}")
         return {
             "progress_bar": {"val_loss": val_loss},
@@ -147,7 +147,7 @@ if __name__ == "__main__":
 
     if args.dataset == "yelp":
         args.batch_size = 256
-        args.epochs = 10
+        args.epochs = 20
     elif args.dataset == "shen":
         args.batch_size = 256
         args.epochs = 10

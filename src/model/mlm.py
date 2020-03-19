@@ -33,9 +33,16 @@ class MLM(nn.Module):
         E_s = self.style_embedding(label).unsqueeze(1)
         return E_t + E_p + E_s
 
-    def forward(self, inputs, label):
+    def forward(self, inputs, label, res_type="none", tau=1.0): # res_type: "none", "softmax", "gumbel"
         x = self.embedding(inputs, label)
 
         x = self.lm(x.transpose(0, 1)).transpose(0, 1)
 
-        return self.fwd(x)
+        logits = self.fwd(x)
+
+        if res_type == "none":
+            return logits
+        elif res_type == "softmax":
+            return F.softmax(logits / tau, dim=-1)
+        else:
+            return F.gumbel_softmax(logits, tau=tau, hard=False)
