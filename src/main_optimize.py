@@ -33,18 +33,14 @@ class GenerationTuner(pl.LightningModule):
         self.classifier = TextCNN(len(self.vocab), n_class=args.n_class)
         self.matcher = Matcher(len(self.vocab))
         self.disc = RelGAN_D(len(self.vocab))
-        # generator
-        self.generator = MLM(len(self.vocab), args.n_class)
-        # denoise
         self.denoiser = DenoiseGRU(len(self.vocab), args.n_class, args.max_len)
+        self.generator = MLM(len(self.vocab), args.n_class)
         
         # reload pretrained models
         self.classifier.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/cls.pth"))
         self.matcher.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/mat.pth"))
-        if args.mode == "test":
-            self.denoiser.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/dn.pth"))
-
-        # self.generator.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/warmup/G.pth"))
+        self.denoiser.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/dn.pth"))
+        self.generator.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/warmup/G.pth"))
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
