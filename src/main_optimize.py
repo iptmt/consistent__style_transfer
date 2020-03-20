@@ -19,10 +19,7 @@ from model.discriminator import RelGAN_D
 from vocab import BPETokenizer
 from loader import StyleDataset, load_s2l, collate_optimize 
 
-from knockknock import wechat_sender
-
 STAGE = "optimize"
-webhook_url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=2765d9cb-0a43-4344-a612-e1d7b008ad92"
 
 class GenerationTuner(pl.LightningModule):
     def __init__(self, args):
@@ -208,7 +205,6 @@ def construct_trainer(args):
     return trainer        
 
 
-@wechat_sender(webhook_url=webhook_url)
 def main():
     from arguments import fetch_args
     args = fetch_args()
