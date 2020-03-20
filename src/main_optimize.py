@@ -69,7 +69,7 @@ class GenerationTuner(pl.LightningModule):
 
         # update discriminator opt every 5 steps
         if optimizer_idx == 1:
-            if batch_idx % 1 == 0 :
+            if batch_idx % 5 == 0 :
                 optimizer.step()
                 optimizer.zero_grad()
     
@@ -88,7 +88,7 @@ class GenerationTuner(pl.LightningModule):
             c_logits = self.matcher(sample_p, x) 
 
             self.disc.eval()
-            adv_logits = self.disc(sample_p)
+            adv_logits = self.disc(sample_p, 1 - labels)
 
             s_loss = self.ce_crit(s_logits, 1 - labels)
             c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
@@ -100,10 +100,10 @@ class GenerationTuner(pl.LightningModule):
         
         if optimizer_idx == 1:
             self.disc.train()
-            t_logits = self.disc(F.one_hot(x, len(self.vocab)).float())
+            t_logits = self.disc(F.one_hot(x, len(self.vocab)).float(), labels)
             with torch.no_grad():
                 x_ = self.forward(x, 1 - labels, tau)
-            f_logits = self.disc(x_)
+            f_logits = self.disc(x_, 1 - labels)
 
             D_loss = 0.5 * (self.bce_crit(t_logits, self.adv_label(t_logits, 1)) + \
                 self.bce_crit(f_logits, self.adv_label(f_logits, 0)))
@@ -117,7 +117,7 @@ class GenerationTuner(pl.LightningModule):
 
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x) 
-        adv_logits = self.disc(sample_p)
+        adv_logits = self.disc(sample_p, 1 - labels)
 
         s_loss = self.ce_crit(s_logits, 1 - labels)
         c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
