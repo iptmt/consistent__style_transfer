@@ -19,7 +19,10 @@ from model.discriminator import RelGAN_D
 from vocab import BPETokenizer
 from loader import StyleDataset, load_s2l, collate_optimize 
 
+from knockknock import wechat_sender
+
 STAGE = "optimize"
+webhook_url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=2765d9cb-0a43-4344-a612-e1d7b008ad92"
 
 class GenerationTuner(pl.LightningModule):
     def __init__(self, args):
@@ -53,7 +56,7 @@ class GenerationTuner(pl.LightningModule):
         self.ws, self.wc = args.w_s, args.w_c
     
     def forward(self, x, labels, tau):
-        sample_p = self.generator(x, labels, res_type="gumbel", tau=tau)
+        sample_p = self.generator(x, labels, res_type="softmax", tau=tau)
         return sample_p
  
     def configure_optimizers(self):
@@ -79,10 +82,8 @@ class GenerationTuner(pl.LightningModule):
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
 
-        tau = self.tau ** min([1.0, self.global_step / 20000])
-
         if optimizer_idx == 0:
-            sample_p = self.forward(x, 1 - labels, tau)
+            sample_p = self.forward(x, 1 - labels, self.tau)
 
             s_logits = self.classifier(sample_p)
             c_logits = self.matcher(sample_p, x) 
@@ -102,7 +103,7 @@ class GenerationTuner(pl.LightningModule):
             self.disc.train()
             t_logits = self.disc(F.one_hot(x, len(self.vocab)).float(), labels)
             with torch.no_grad():
-                x_ = self.forward(x, 1 - labels, tau)
+                x_ = self.forward(x, 1 - labels, self.tau)
             f_logits = self.disc(x_, 1 - labels)
 
             D_loss = 0.5 * (self.bce_crit(t_logits, self.adv_label(t_logits, 1)) + \
@@ -207,7 +208,8 @@ def construct_trainer(args):
     return trainer        
 
 
-if __name__ == "__main__":
+@wechat_sender(webhook_url=webhook_url)
+def main():
     from arguments import fetch_args
     args = fetch_args()
 
@@ -258,3 +260,6 @@ if __name__ == "__main__":
                 model.load_state_dict(pretrain_model.state_dict())
             trainer = construct_trainer(args)
             trainer.test(model)
+
+if __name__ == "__main__":
+    main()
