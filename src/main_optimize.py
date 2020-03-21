@@ -34,7 +34,7 @@ class GenerationTuner(pl.LightningModule):
         self.classifier = TextCNN(len(self.vocab), n_class=args.n_class)
         self.matcher = Matcher(len(self.vocab))
         self.disc = RelGAN_D(len(self.vocab))
-        self.generator = DenoiseGRU(len(self.vocab), args.n_class, args.max_len)
+        self.generator = DenoiseLSTM(len(self.vocab), args.n_class, args.max_len)
         # self.generator = MLM(len(self.vocab), args.n_class)
  
         # reload pretrained models
