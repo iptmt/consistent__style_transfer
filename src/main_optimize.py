@@ -57,8 +57,8 @@ class GenerationTuner(pl.LightningModule):
         return sample_p
  
     def configure_optimizers(self):
-        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-5)
-        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=1e-5)
+        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
+        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=1e-4)
         return optimizer_gen, optimizer_adv
     
     def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, 
@@ -69,7 +69,7 @@ class GenerationTuner(pl.LightningModule):
 
         # update discriminator opt every 5 steps
         if optimizer_idx == 1:
-            if batch_idx % 1 == 0 :
+            if batch_idx % 5 == 0 :
                 optimizer.step()
                 optimizer.zero_grad()
     
