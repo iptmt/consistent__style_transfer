@@ -53,7 +53,7 @@ class GenerationTuner(pl.LightningModule):
         self.ws, self.wc = args.w_s, args.w_c
     
     def forward(self, x, labels, tau):
-        sample_p = self.generator(x, None, labels, res_type="softmax", tau=tau)
+        sample_p = self.generator(x, None, labels, res_type="gumbel", tau=tau)
         return sample_p
  
     def configure_optimizers(self):
@@ -79,8 +79,10 @@ class GenerationTuner(pl.LightningModule):
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
 
+        tau = self.tau ** min([1.0, self.global_step / 17000])
+
         if optimizer_idx == 0:
-            sample_p = self.forward(x, 1 - labels, self.tau)
+            sample_p = self.forward(x, 1 - labels, tau)
 
             s_logits = self.classifier(sample_p)
             c_logits = self.matcher(sample_p, x) 
@@ -100,7 +102,7 @@ class GenerationTuner(pl.LightningModule):
             self.disc.train()
             t_logits = self.disc(F.one_hot(x, len(self.vocab)).float(), labels)
             with torch.no_grad():
-                x_ = self.forward(x, 1 - labels, self.tau)
+                x_ = self.forward(x, 1 - labels, tau)
             f_logits = self.disc(x_, 1 - labels)
 
             D_loss = 0.5 * (self.bce_crit(t_logits, self.adv_label(t_logits, 1)) + \
@@ -208,7 +210,7 @@ def main():
     args = fetch_args()
 
     if args.dataset == "yelp":
-        args.epochs = 20
+        args.epochs = 10
         args.batch_size = 256
     elif args.dataset == "shen":
         args.epochs = 10
