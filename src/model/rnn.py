@@ -13,22 +13,24 @@ d_enc = 256
 d_dec = 512
 p_drop = 0.1
 
-class DenoiseGRU(nn.Module):
+class DenoiseLSTM(nn.Module):
     def __init__(self, n_vocab, n_class, max_len):
         super().__init__()
         self.start_embedding = nn.Embedding(1, d_embed)
         self.token_embedding = nn.Embedding(n_vocab, d_embed)
         self.style_embedding = nn.Embedding(n_class, d_dec)
 
-        self.encoder = nn.GRU(
+        self.encoder = nn.LSTM(
             input_size=d_embed, hidden_size=d_enc, num_layers=1,
             batch_first=True, bidirectional=True
         )
 
-        self.decoder = nn.GRU(
+        self.decoder = nn.LSTM(
             input_size=d_embed, hidden_size=d_dec, num_layers=1,
             batch_first=True, bidirectional=False
         )
+
+        self.transfer = nn.Linear(2 * d_enc, d_dec, bias=False)
 
         self.multi_attn = MultiheadAttention(d_dec, 8)
 
@@ -36,29 +38,31 @@ class DenoiseGRU(nn.Module):
 
         self.norm = LayerNorm(d_dec)
         self.dropout = nn.Dropout(p_drop)
+        self.tanh = nn.Tanh()
 
         self.max_len = max_len
     
     def forward(self, nx, x, label, res_type="none", tau=1.0):
         # encode
         nx = self.dropout(self.token_embedding(nx))
-        memory, _ = self.encoder(nx)
+        memory, (h_end, _) = self.encoder(nx)
         memory = memory.transpose(0, 1) # transpose for multi-head attn
 
         # decode
         max_len = self.max_len if x is None else x.size(1)
 
         x_t = self.start_embedding(nx.new_full((nx.size(0), 1), 0).long()) # B * 1 * d_emb
-        h_t = self.style_embedding(label).unsqueeze(0) # 1 * B * d_dec
+        h_t = self.tanh(self.transfer(h_end.transpose(0, 1).reshape(1, nx.size(0), -1))) # 1 * B * d_dec
+        c_t = self.style_embedding(label).unsqueeze(0) # 1 * B * d_dec
 
         logits = []
         for step in range(max_len):
             # update GRU
-            _, h_t_ = self.decoder(x_t, h_t)
-            # update c_t
-            c_t, _ = self.multi_attn(h_t_, memory, memory)
+            _, (h_t_, c_t) = self.decoder(x_t, (h_t, c_t))
+            # update a_t
+            a_t, _ = self.multi_attn(h_t_, memory, memory)
             # update h_t
-            h_t = self.norm(h_t_ + c_t)
+            h_t = self.norm(h_t_ + a_t)
             # update logits
             logits_t = self.project(h_t.transpose(0, 1))
 
@@ -77,7 +81,7 @@ class DenoiseGRU(nn.Module):
 
 
 if __name__ == "__main__":
-    model = DenoiseGRU(10000, 2, 16)
+    model = DenoiseLSTM(10000, 2, 16)
     nx = torch.randint(0, 9999, (64, 15))
     x = torch.randint(0, 9999, (64, 20))
     label = torch.randint(0, 1, (64,))

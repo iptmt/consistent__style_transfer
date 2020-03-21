@@ -10,7 +10,8 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TensorBoardLogger
 from pytorch_lightning.callbacks import EarlyStopping
 
-from model.mlm import MLM
+# from model.mlm import MLM
+from model.rnn import DenoiseLSTM
 
 from vocab import BPETokenizer
 from loader import StyleDataset, load_s2l, collate_warmup
@@ -25,7 +26,8 @@ class WarmupModel(pl.LightningModule):
         self.vocab = BPETokenizer.load(f"{args.dump_dir}/{args.dataset}/{args.dataset}-vocab.json",
                                        f"{args.dump_dir}/{args.dataset}/{args.dataset}-merges.txt")
 
-        self.generator = MLM(len(self.vocab), args.n_class)
+        # self.generator = MLM(len(self.vocab), args.n_class)
+        self.generator = DenoiseLSTM(len(self.vocab), args.n_class, args.max_len)
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
@@ -33,17 +35,17 @@ class WarmupModel(pl.LightningModule):
 
         self.best_eval = float("inf")
  
-    def forward(self, nx, labels):
-        dn_logits = self.generator(nx, labels)
+    def forward(self, nx, x, labels):
+        dn_logits = self.generator(nx, x, labels)
         return dn_logits
     
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
+        optimizer = torch.optim.Adam(self.generator.parameters(), lr=1e-3)
         return optimizer
     
     def training_step(self, batch, batch_idx):
         nx, x, labels = batch
-        dn_logits = self.forward(nx, labels)
+        dn_logits = self.forward(nx, x, labels)
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
 
         loginfo = {"dn_loss": dn_loss}
@@ -51,7 +53,7 @@ class WarmupModel(pl.LightningModule):
     
     def validation_step(self, batch, batch_idx):
         nx, x, labels = batch
-        dn_logits = self.forward(nx, labels)
+        dn_logits = self.forward(nx, x, labels)
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
         return {"loss": dn_loss.item()}
     
@@ -99,13 +101,13 @@ if __name__ == "__main__":
     args = fetch_args()
 
     if args.dataset == "yelp":
-        args.epochs = 5
+        args.epochs = 2
         args.batch_size = 256
     elif args.dataset == "shen":
-        args.epochs = 5
+        args.epochs = 2
         args.batch_size = 256
     elif args.dataset == "book":
-        args.epochs = 5
+        args.epochs = 2
         args.batch_size = 128
     else:
         raise ValueError
