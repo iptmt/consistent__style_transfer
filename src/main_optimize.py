@@ -54,7 +54,7 @@ class GenerationTuner(pl.LightningModule):
         self.ws, self.wc = args.w_s, args.w_c
     
     def forward(self, x, labels, tau):
-        sample_p = self.generator(x, None, labels, res_type="softmax", tau=tau)
+        sample_p = self.generator(x, None, labels, res_type="gumbel", tau=tau)
         return sample_p
  
     def configure_optimizers(self):
@@ -80,7 +80,7 @@ class GenerationTuner(pl.LightningModule):
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
 
-        tau = self.tau ** min([1.0, self.global_step / 17000])
+        tau = self.tau ** max([1.0 - self.global_step / 17000, 0.0])
 
         if optimizer_idx == 0:
             sample_p = self.forward(x, 1 - labels, tau)
