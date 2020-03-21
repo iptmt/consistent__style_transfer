@@ -69,7 +69,7 @@ class DenoiseLSTM(nn.Module):
             if res_type == "softmax":
                 logits_t = F.softmax(logits_t / tau, dim=-1)
             elif res_type == "gumbel":
-                logits_t = F.gumbel_softmax(logits_t, tau=tau, hard=True)
+                logits_t = F.gumbel_softmax(logits_t, tau=tau, hard=False)
             logits.append(logits_t)
 
             if x is None or random.random() < 1/2:
