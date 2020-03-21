@@ -24,7 +24,7 @@ def fetch_args():
     parser.add_argument('--w_s', type=float, default=0.05, help="weight of STI")
     parser.add_argument('--w_c', type=float, default=0.5, help="weight of CP")
 
-    parser.add_argument('--tau', type=float, default=0.01, help="annealling temperature")
+    parser.add_argument('--tau', type=float, default=0.1, help="annealling temperature")
     parser.add_argument('--gap', type=float, default=0.0, help="annealling temperature")
     # parser.add_argument('--denoise', type=str, default=False, help="denoise the output")
 
