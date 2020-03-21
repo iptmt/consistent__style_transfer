@@ -19,7 +19,7 @@ class RelGAN_D(nn.Module):
         self.embeddings = nn.Linear(vocab_size, embed_dim, bias=False)
         self.style_embedding = nn.Embedding(2, embed_dim)
 
-        self.style_embedding.weight.uniform_(-0.01, 0.01)
+        nn.init.uniform_(self.style_embedding.weight, -0.01, 0.01)
 
         self.convs = nn.ModuleList([
             nn.Conv2d(1, n, (f, self.emb_dim_single), stride=(1, self.emb_dim_single)) for (n, f) in
