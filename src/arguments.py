@@ -26,7 +26,7 @@ def fetch_args():
 
     parser.add_argument('--tau', type=float, default=0.01, help="annealling temperature")
     parser.add_argument('--gap', type=float, default=0.0, help="annealling temperature")
-    parser.add_argument('--denoise', type=str, default=False, help="denoise the output")
+    # parser.add_argument('--denoise', type=str, default=False, help="denoise the output")
 
     parser.add_argument('--device', type=str, default="0", help="device id")
     parser.add_argument('--restore_version', type=int, default=-1, help="version for restore trainer and it's state")

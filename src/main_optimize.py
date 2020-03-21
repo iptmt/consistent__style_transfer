@@ -33,27 +33,27 @@ class GenerationTuner(pl.LightningModule):
         self.classifier = TextCNN(len(self.vocab), n_class=args.n_class)
         self.matcher = Matcher(len(self.vocab))
         self.disc = RelGAN_D(len(self.vocab))
-        self.denoiser = DenoiseGRU(len(self.vocab), args.n_class, args.max_len)
-        self.generator = MLM(len(self.vocab), args.n_class)
-        
+        self.generator = DenoiseGRU(len(self.vocab), args.n_class, args.max_len)
+        # self.generator = MLM(len(self.vocab), args.n_class)
+ 
         # reload pretrained models
         self.classifier.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/cls.pth"))
         self.matcher.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/mat.pth"))
-        self.denoiser.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/dn.pth"))
-        self.generator.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/warmup/G.pth"))
+        # self.denoiser.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/dn.pth"))
+        self.generator.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/dn.pth"))
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
         self.ce_crit = nn.CrossEntropyLoss()
         self.mse_crit = nn.MSELoss()
         self.bce_crit = nn.BCEWithLogitsLoss()
-        
+ 
         self.tau = args.tau
 
         self.ws, self.wc = args.w_s, args.w_c
     
     def forward(self, x, labels, tau):
-        sample_p = self.generator(x, labels, res_type="softmax", tau=tau)
+        sample_p = self.generator(x, None, labels, res_type="softmax", tau=tau)
         return sample_p
  
     def configure_optimizers(self):
@@ -138,9 +138,7 @@ class GenerationTuner(pl.LightningModule):
     
     def test_step(self, batch, batch_idx):
         x, labels = batch
-        logits = self.generator(x, 1 - labels)
-        if self.hparams.denoise:
-            logits = self.denoiser(logits.argmax(-1), None, 1 - labels)
+        logits = self.generator(x, None, 1 - labels)
         return {
             "ori": x.cpu().numpy().tolist(),
             "tsf": logits.argmax(-1).cpu().numpy().tolist(),

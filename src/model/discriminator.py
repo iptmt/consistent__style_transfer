@@ -37,11 +37,9 @@ class RelGAN_D(nn.Module):
         :param inp: batch_size * seq_len * vocab_size
         :return logits: [batch_size * num_rep] (1-D tensor)
         """
-        emb = self.embeddings(inp)  # batch_size * 1 * max_seq_len * embed_dim
-        sty_emb = self.style_embedding(labels).unsqueeze(1)
-        emb = torch.cat([sty_emb, emb], dim=1).unsqueeze(1)
-
-
+        emb = self.embeddings(inp).unsqueeze(1)  # batch_size * 1 * max_seq_len * embed_dim
+        # sty_emb = self.style_embedding(labels).unsqueeze(1)
+        # emb = torch.cat([sty_emb, emb], dim=1).unsqueeze(1)
 
         cons = [F.relu(conv(emb)) for conv in self.convs]  # [batch_size * num_filter * (seq_len-k_h+1) * num_rep]
         pools = [F.max_pool2d(con, (con.size(2), 1)).squeeze(2) for con in cons]  # [batch_size * num_filter * num_rep]

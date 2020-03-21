@@ -39,7 +39,7 @@ class DenoiseGRU(nn.Module):
 
         self.max_len = max_len
     
-    def forward(self, nx, x, label):
+    def forward(self, nx, x, label, res_type="none", tau=1.0):
         # encode
         nx = self.dropout(self.token_embedding(nx))
         memory, _ = self.encoder(nx)
@@ -61,6 +61,11 @@ class DenoiseGRU(nn.Module):
             h_t = self.norm(h_t_ + c_t)
             # update logits
             logits_t = self.project(h_t.transpose(0, 1))
+
+            if res_type == "softmax":
+                logits_t = F.softmax(logits_t / tau, dim=-1)
+            elif res_type == "gumbel":
+                logits_t = F.gumbel_softmax(logits_t, tau=tau, hard=False)
             logits.append(logits_t)
 
             if x is None or random.random() < 1/2:
@@ -76,7 +81,7 @@ if __name__ == "__main__":
     nx = torch.randint(0, 9999, (64, 15))
     x = torch.randint(0, 9999, (64, 20))
     label = torch.randint(0, 1, (64,))
-    output_0 = model(nx, x, label)
-    output_1 = model(nx, None, label)
+    output_0 = model(nx, x, label, res_type="gumbel", tau=0.1)
+    output_1 = model(nx, None, label, res_type="softmax", tau=0.01)
     print(output_0.shape)
     print(output_1.shape)
