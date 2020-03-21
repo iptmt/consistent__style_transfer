@@ -188,13 +188,13 @@ def construct_trainer(args):
                                version=args.restore_version)
     checkpoint = ModelCheckpoint(filepath=args.task_dump_dir,
                                  save_weights_only=True,
-                                 save_top_k=1,
+                                 save_top_k=3,
                                  verbose=0,
                                  monitor='val_loss',
                                  mode='min',
                                  prefix=STAGE)
     early_stop = EarlyStopping(monitor="val_loss",
-                               patience=3,
+                               patience=args.epochs,
                                mode="min")
     trainer = Trainer(logger=logger,
                       early_stop_callback=early_stop,
