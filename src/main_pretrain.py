@@ -9,7 +9,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TensorBoardLogger
 from pytorch_lightning.callbacks import EarlyStopping
 
-from model.gru import DenoiseGRU 
+from model.mlm import MLM
 from model.match import Matcher
 from model.classifier import TextCNN
 
@@ -31,7 +31,7 @@ class PretrainModel(pl.LightningModule):
 
         self.classifier = TextCNN(len(self.vocab), n_class=args.n_class)
         self.matcher = Matcher(len(self.vocab))
-        self.denoiser = DenoiseGRU(len(self.vocab), n_class=args.n_class, max_len=args.max_len)
+        self.denoiser = MLM(len(self.vocab), n_class=args.n_class)
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
@@ -51,7 +51,7 @@ class PretrainModel(pl.LightningModule):
         c_logits = self.matcher(noise_x_1, noise_x_2) if self.flags["mat"] else None
 
         # denoising
-        dn_logits = self.denoiser(noise_x, x, label) if self.flags["dn"] else None
+        dn_logits = self.denoiser(noise_x, label) if self.flags["dn"] else None
 
         return s_logits, c_logits, dn_logits
     

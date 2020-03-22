@@ -14,6 +14,9 @@ class MLM(nn.Module):
         self.posit_embedding = nn.Embedding(100, d_model) # max sequence length -> 100
         self.style_embedding = nn.Embedding(n_class, d_model)
 
+        nn.init.xavier_uniform_(self.posit_embedding.weight)
+        nn.init.xavier_uniform_(self.style_embedding.weight)
+
         self.lm = nn.TransformerEncoder(
             nn.TransformerEncoderLayer(d_model=d_model, nhead=n_head), num_layers=n_layer
         )
@@ -33,16 +36,11 @@ class MLM(nn.Module):
         E_s = self.style_embedding(label).unsqueeze(1)
         return E_t + E_p + E_s
 
-    def forward(self, inputs, label, res_type="none", tau=1.0): # res_type: "none", "softmax", "gumbel"
+    def forward(self, inputs, label):
         x = self.embedding(inputs, label)
 
         x = self.lm(x.transpose(0, 1)).transpose(0, 1)
 
         logits = self.fwd(x)
 
-        if res_type == "none":
-            return logits
-        elif res_type == "softmax":
-            return F.softmax(logits / tau, dim=-1)
-        else:
-            return F.gumbel_softmax(logits, tau=tau, hard=False)
+        return logits
