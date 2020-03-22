@@ -32,39 +32,43 @@ class DenoiseLSTM(nn.Module):
 
         self.transfer = nn.Linear(2 * d_enc, d_dec, bias=False)
 
-        self.multi_attn = MultiheadAttention(d_dec, 8)
+        self.fn_1 = nn.Linear(2 * d_enc + d_dec, d_dec)
+        self.fn_2 = nn.Linear(d_dec, n_vocab, bias=False)
 
-        self.project = nn.Linear(d_dec, n_vocab)
-
-        self.norm = LayerNorm(d_dec)
         self.dropout = nn.Dropout(p_drop)
-        self.tanh = nn.Tanh()
+        self.relu = nn.LeakyReLU(0.1)
 
         self.max_len = max_len
+    
+    # q: b * 1 * H; k=v: b * L * H
+    def dot_attn(self, q, k, v):
+        a = q.bmm(k.transpose(1, 2)) # b * 1 * L
+        a_norm = F.softmax(a / (k.size(-1) ** 0.5), dim=-1)
+        c = a_norm.bmm(v) # b * 1 * H
+        return c
     
     def forward(self, nx, x, label, res_type="none", tau=1.0):
         # encode
         nx = self.dropout(self.token_embedding(nx))
         memory, (h_end, _) = self.encoder(nx)
-        memory = memory.transpose(0, 1) # transpose for multi-head attn
 
         # decode
         max_len = self.max_len if x is None else x.size(1)
 
         x_t = self.start_embedding(nx.new_full((nx.size(0), 1), 0).long()) # B * 1 * d_emb
-        c_t = self.tanh(self.transfer(h_end.transpose(0, 1).reshape(1, nx.size(0), -1))) # 1 * B * d_dec
+        c_t = self.relu(self.transfer(h_end.transpose(0, 1).reshape(1, nx.size(0), -1))) # 1 * B * d_dec
         h_t = self.style_embedding(label).unsqueeze(0) # 1 * B * d_dec
 
         logits = []
         for step in range(max_len):
             # update GRU
-            _, (h_t_, c_t) = self.decoder(x_t, (h_t, c_t))
+            o_t, (h_t, c_t) = self.decoder(x_t, (h_t, c_t))
             # update a_t
-            a_t, _ = self.multi_attn(h_t_, memory, memory)
-            # update h_t
-            h_t = self.norm(h_t_ + a_t)
-            # update logits
-            logits_t = self.project(h_t.transpose(0, 1))
+            a_t = self.dot_attn(o_t, memory, memory)
+
+            i_ffn = torch.cat([o_t, a_t], dim=-1)
+            o_f1 = self.fn_1(self.dropout(i_ffn))
+            logits_t = self.fn_2(self.relu(o_f1))
 
             if res_type == "softmax":
                 logits_t = F.softmax(logits_t / tau, dim=-1)
