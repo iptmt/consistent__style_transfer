@@ -77,8 +77,8 @@ class GenerationTuner(pl.LightningModule):
     # def adv_label(self, logits, value):
     #     return logits.new_full(logits.shape, value)
 
-    def soft_ce(self, logits, p_tgt, temperature=1.0):
-        return -(p_tgt * F.log_softmax(logits / temperature, dim=-1)).sum(-1).mean()
+    # def soft_ce(self, logits, p_tgt, temperature=1.0):
+    #     return -(p_tgt * F.log_softmax(logits / temperature, dim=-1)).sum(-1).mean()
     
     def training_step(self, batch, batch_idx):
         x, labels = batch
@@ -104,8 +104,8 @@ class GenerationTuner(pl.LightningModule):
 
         bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
-        loss = dn_logits + self.wc * c_loss + self.ws * s_loss + self.wdn * bk_loss
-        loginfo = {"DN": dn_loss, "S": s_loss, "C": c_loss, "BK": bk_loss}
+        loss = self.wdn * dn_logits + self.wc * c_loss + self.ws * s_loss + bk_loss
+        loginfo = {"NT": dn_loss, "STI": s_loss, "CP": c_loss, "BK": bk_loss}
         return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
         
         # if optimizer_idx == 1:
