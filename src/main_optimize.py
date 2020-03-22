@@ -77,8 +77,8 @@ class GenerationTuner(pl.LightningModule):
     # def adv_label(self, logits, value):
     #     return logits.new_full(logits.shape, value)
 
-    # def soft_ce(self, logits, p_tgt, temperature=1.0):
-    #     return -(p_tgt * F.log_softmax(logits / temperature, dim=-1)).sum(-1).mean()
+    def soft_ce(self, logits, p_tgt, temperature=1.0):
+        return -(p_tgt * F.log_softmax(logits / temperature, dim=-1)).sum(-1).mean()
     
     def training_step(self, batch, batch_idx):
         x, labels = batch
@@ -98,7 +98,8 @@ class GenerationTuner(pl.LightningModule):
         s_loss = self.ce_crit(s_logits, 1 - labels)
         c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
         # G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
-        dn_loss = self.ce_crit(dn_logits.reshape(-1, dn_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
+        # dn_loss = self.ce_crit(dn_logits.reshape(-1, dn_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
+        dn_loss = self.soft_ce(dn_logits, sample_p)
 
         bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
@@ -136,7 +137,8 @@ class GenerationTuner(pl.LightningModule):
         # G_loss = self.bce_crit(G_logits, self.adv_label(G_logits, 1))
         # D_loss = 0.5 * (self.bce_crit(t_logits, self.adv_label(t_logits, 1)) + \
             # self.bce_crit(f_logits, self.adv_label(f_logits, 0)))
-        dn_loss = self.ce_crit(dn_logits.reshape(-1, dn_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
+        # dn_loss = self.ce_crit(dn_logits.reshape(-1, dn_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
+        dn_loss = self.soft_ce(dn_logits, sample_p)
 
         return {"loss": (dn_loss + s_loss + c_loss).item()}
         
