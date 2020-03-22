@@ -83,10 +83,8 @@ class GenerationTuner(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, labels = batch
 
-        tau = self.tau# ** max([1.0 - self.global_step / 17000, 0.0])
-
         # if optimizer_idx == 0:
-        sample_p = self.forward(x, 1 - labels, tau)
+        sample_p = self.forward(x, 1 - labels, self.tau)
 
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x)
@@ -105,7 +103,7 @@ class GenerationTuner(pl.LightningModule):
         bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
         loss = self.wdn * dn_logits + self.wc * c_loss + self.ws * s_loss + bk_loss
-        loginfo = {"NT": dn_loss, "STI": s_loss, "CP": c_loss, "BK": bk_loss}
+        loginfo = {"NT": dn_loss.item(), "STI": s_loss.item(), "CP": c_loss.item(), "BK": bk_loss.item()}
         return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
         
         # if optimizer_idx == 1:
