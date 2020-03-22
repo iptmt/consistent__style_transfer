@@ -80,7 +80,7 @@ class GenerationTuner(pl.LightningModule):
     def soft_ce(self, logits, p_tgt, temperature=1.0):
         return -(p_tgt * F.log_softmax(logits / temperature, dim=-1)).sum(-1).mean()
     
-    def training_step(self, batch, batch_idx, optimizer_idx):
+    def training_step(self, batch, batch_idx):
         x, labels = batch
 
         tau = self.tau# ** max([1.0 - self.global_step / 17000, 0.0])
