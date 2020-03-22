@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 embed_dim = 128
-num_rep = 8
+num_rep = 16
 dis_filter_sizes = [2, 3, 4, 5]
 dis_num_filters = [300, 300, 300, 300]
 
