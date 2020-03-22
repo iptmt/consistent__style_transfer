@@ -47,27 +47,25 @@ def collate_pretrain(vocab, w2v):
     def collate_func(batch_samples):
         sentences, labels = zip(*batch_samples)
 
-        # noised_sentences_1 = transfer_noise(sentences, p=0.15)
-        # noised_sentences_2 = transfer_noise(sentences, p=0.15)
+        noised_sentences_1 = transfer_noise(sentences, p=0.15)
+        noised_sentences_2 = transfer_noise(sentences, p=0.15)
         noised_sentences_3 = rand_perm(sentences, p=0.15)
 
         aligned_sentences, _, _ = align(sentences, PAD_ID)
-        # aligned_noised_sentences_1, _, _ = align(noised_sentences_1, PAD_ID)
-        # aligned_noised_sentences_2, _, _ = align(noised_sentences_2, PAD_ID)
+        aligned_noised_sentences_1, _, _ = align(noised_sentences_1, PAD_ID)
+        aligned_noised_sentences_2, _, _ = align(noised_sentences_2, PAD_ID)
 
         aligned_noised_sentences_3, _, _ = align(noised_sentences_3, PAD_ID)
 
-        # c_label = w2v.cal_wmd_label(noised_sentences_1, noised_sentences_2, vocab)
+        c_label = w2v.cal_wmd_label(noised_sentences_1, noised_sentences_2, vocab)
 
         return (
             pth_tensor(aligned_sentences, torch.long),
-            None, None,
-            # pth_tensor(aligned_noised_sentences_1, torch.long),
-            # pth_tensor(aligned_noised_sentences_2, torch.long),
+            pth_tensor(aligned_noised_sentences_1, torch.long),
+            pth_tensor(aligned_noised_sentences_2, torch.long),
             pth_tensor(aligned_noised_sentences_3, torch.long),
             pth_tensor(labels, torch.long),
-            # pth_tensor(c_label, torch.float)
-            None
+            pth_tensor(c_label, torch.float)
         )
     return collate_func
 
