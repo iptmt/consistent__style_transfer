@@ -52,8 +52,8 @@ class DenoiseLSTM(nn.Module):
         max_len = self.max_len if x is None else x.size(1)
 
         x_t = self.start_embedding(nx.new_full((nx.size(0), 1), 0).long()) # B * 1 * d_emb
-        h_t = self.tanh(self.transfer(h_end.transpose(0, 1).reshape(1, nx.size(0), -1))) # 1 * B * d_dec
-        c_t = self.style_embedding(label).unsqueeze(0) # 1 * B * d_dec
+        c_t = self.tanh(self.transfer(h_end.transpose(0, 1).reshape(1, nx.size(0), -1))) # 1 * B * d_dec
+        h_t = self.style_embedding(label).unsqueeze(0) # 1 * B * d_dec
 
         logits = []
         for step in range(max_len):
