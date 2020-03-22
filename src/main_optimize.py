@@ -211,14 +211,14 @@ def main():
     args = fetch_args()
 
     if args.dataset == "yelp":
-        args.epochs = 15
+        args.epochs = 10
         args.batch_size = 256
     elif args.dataset == "shen":
-        args.epochs = 15
+        args.epochs = 10
         args.batch_size = 256
     elif args.dataset == "book":
         args.batch_size = 128
-        args.epochs = 15
+        args.epochs = 10
     else:
         raise ValueError
 
