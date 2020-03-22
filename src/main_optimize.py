@@ -98,7 +98,7 @@ class GenerationTuner(pl.LightningModule):
             G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
             bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
-            loss = G_loss + self.wc * c_loss + self.ws * s_loss
+            loss = G_loss + self.wc * c_loss + self.ws * s_loss + bk_loss
             loginfo = {"G": G_loss, "S": s_loss, "C": c_loss, "BK": bk_loss}
             return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
         
