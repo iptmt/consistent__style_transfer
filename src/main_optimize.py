@@ -102,8 +102,8 @@ class GenerationTuner(pl.LightningModule):
 
         bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
-        loss = self.wdn * dn_logits + self.wc * c_loss + self.ws * s_loss + bk_loss
-        loginfo = {"NT": dn_loss.item(), "STI": s_loss.item(), "CP": c_loss.item(), "BK": bk_loss.item()}
+        loss = self.wdn * dn_loss + self.wc * c_loss + self.ws * s_loss + bk_loss
+        loginfo = {"NT": dn_loss, "STI": s_loss, "CP": c_loss, "BK": bk_loss}
         return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
         
         # if optimizer_idx == 1:
