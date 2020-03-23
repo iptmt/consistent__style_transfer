@@ -58,7 +58,7 @@ class GenerationTuner(pl.LightningModule):
         return sample_p
  
     def configure_optimizers(self):
-        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-5)
+        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=5e-5)
         # optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=1e-5)
         return optimizer_gen#, optimizer_adv
     
