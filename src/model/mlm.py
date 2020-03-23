@@ -12,10 +12,10 @@ class MLM(nn.Module):
 
         self.token_embedding = nn.Embedding(n_vocab, d_model)
         self.posit_embedding = nn.Embedding(100, d_model) # max sequence length -> 100
-        self.style_embedding = nn.Embedding(n_class, d_model)
+        # self.style_embedding = nn.Embedding(n_class, d_model)
 
         nn.init.xavier_uniform_(self.posit_embedding.weight)
-        nn.init.xavier_uniform_(self.style_embedding.weight)
+        # nn.init.xavier_uniform_(self.style_embedding.weight)
 
         self.lm = nn.TransformerEncoder(
             nn.TransformerEncoderLayer(d_model=d_model, nhead=n_head), num_layers=n_layer
@@ -33,7 +33,8 @@ class MLM(nn.Module):
             raise Exception
         p_idx = torch.arange(tensor.size(1), device=tensor.device).long().unsqueeze(0).expand(tensor.size(0), -1)
         E_p = self.posit_embedding(p_idx)
-        E_s = self.style_embedding(label).unsqueeze(1)
+        # E_s = self.style_embedding(label).unsqueeze(1)
+        E_s = 0.
         return E_t + E_p + E_s
 
     def forward(self, inputs, label):
