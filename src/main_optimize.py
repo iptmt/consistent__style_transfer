@@ -41,7 +41,7 @@ class GenerationTuner(pl.LightningModule):
         self.classifier.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/cls.pth"))
         self.matcher.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/mat.pth"))
         self.denoiser.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/dn.pth"))
-        self.generator.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/warmup/G.pth"))
+        # self.generator.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/warmup/G.pth"))
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
@@ -89,16 +89,16 @@ class GenerationTuner(pl.LightningModule):
             self.disc.eval()
             adv_logits = self.disc(sample_p, 1 - labels)
 
-            # bk_logits = self.generator(sample_p.argmax(-1), x, labels)
+            bk_logits = self.generator(sample_p.argmax(-1), x, labels)
 
             s_loss = self.ce_crit(s_logits, 1 - labels)
             c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
             G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
 
-            # bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
+            bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
-            loss = G_loss + self.wc * c_loss + self.ws * s_loss# + bk_loss
-            loginfo = {"G": G_loss, "STI": s_loss, "CP": c_loss}
+            loss = G_loss + self.wc * c_loss + self.ws * s_loss + bk_loss
+            loginfo = {"G": G_loss, "STI": s_loss, "CP": c_loss, "BK": bk_loss}
             return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
         
         if optimizer_idx == 1:
