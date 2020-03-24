@@ -47,7 +47,7 @@ class WarmupModel(pl.LightningModule):
         nx, x, labels = batch
         dn_logits = self.forward(nx, x, labels)
         with torch.no_grad():
-            tokens_tsf = self.forward(x, None, 1 - labels)
+            tokens_tsf = self.forward(x, None, 1 - labels).argmax(-1)
         bk_logits = self.forward(tokens_tsf, x, labels)
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
         bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
@@ -58,7 +58,8 @@ class WarmupModel(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         nx, x, labels = batch
         dn_logits = self.forward(nx, x, labels)
-        tokens_tsf = self.forward(x, None, 1 - labels)
+        with torch.no_grad():
+            tokens_tsf = self.forward(x, None, 1 - labels).argmax(-1)
         bk_logits = self.forward(tokens_tsf, x, labels)
 
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
