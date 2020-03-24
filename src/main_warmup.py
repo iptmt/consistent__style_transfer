@@ -46,16 +46,24 @@ class WarmupModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         nx, x, labels = batch
         dn_logits = self.forward(nx, x, labels)
+        with torch.no_grad():
+            tokens_tsf = self.forward(x, None, 1 - labels)
+        bk_logits = self.forward(tokens_tsf, x, labels)
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
+        bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
-        loginfo = {"dn_loss": dn_loss}
+        loginfo = {"dn_loss": dn_loss, "bk_loss": bk_loss}
         return {"loss": dn_loss, "progress_bar": loginfo, "log": loginfo}
     
     def validation_step(self, batch, batch_idx):
         nx, x, labels = batch
         dn_logits = self.forward(nx, x, labels)
+        tokens_tsf = self.forward(x, None, 1 - labels)
+        bk_logits = self.forward(tokens_tsf, x, labels)
+
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
-        return {"loss": dn_loss.item()}
+        bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
+        return {"loss": dn_loss.item() + bk_loss.item()}
     
     def validation_end(self, outputs):
         losses = np.array([o["loss"] for o in outputs])
