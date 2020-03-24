@@ -34,7 +34,7 @@ class GenerationTuner(pl.LightningModule):
         self.classifier = TextCNN(len(self.vocab), n_class=args.n_class)
         self.matcher = Matcher(len(self.vocab))
         self.denoiser = MLM(len(self.vocab), args.n_class)
-        # self.disc = RelGAN_D(len(self.vocab))
+        self.disc = RelGAN_D(len(self.vocab))
         self.generator = DenoiseLSTM(len(self.vocab), args.n_class, args.max_len)
  
         # reload pretrained models
@@ -51,7 +51,7 @@ class GenerationTuner(pl.LightningModule):
  
         self.tau = args.tau
 
-        self.ws, self.wc, self.wdn = args.w_s, args.w_c, args.w_dn
+        self.ws, self.wc = args.w_s, args.w_c
     
     def forward(self, x, labels, tau):
         sample_p = self.generator(x, None, labels, res_type="softmax", tau=tau)
@@ -59,64 +59,58 @@ class GenerationTuner(pl.LightningModule):
  
     def configure_optimizers(self):
         optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-5)
-        # optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=2e-5)
-        return optimizer_gen#, optimizer_adv
+        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=2e-5)
+        return optimizer_gen, optimizer_adv
     
-    # def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, 
-    #                          second_order_closure=None):
-    #     if optimizer_idx == 0:
-    #         optimizer.step()
-    #         optimizer.zero_grad()
+    def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, 
+                             second_order_closure=None):
+        if optimizer_idx == 0:
+            optimizer.step()
+            optimizer.zero_grad()
 
-    #     # update discriminator opt every 5 steps
-    #     if optimizer_idx == 1:
-    #         if batch_idx % 5 == 0 :
-    #             optimizer.step()
-    #             optimizer.zero_grad()
+        # update discriminator opt every 5 steps
+        if optimizer_idx == 1:
+            if batch_idx % 5 == 0 :
+                optimizer.step()
+                optimizer.zero_grad()
     
-    # def adv_label(self, logits, value):
-    #     return logits.new_full(logits.shape, value)
+    def adv_label(self, logits, value):
+        return logits.new_full(logits.shape, value)
 
-    def soft_ce(self, logits, p_tgt, temperature=1.0):
-        return -(p_tgt * F.log_softmax(logits / temperature, dim=-1)).sum(-1).mean()
-    
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
 
-        # if optimizer_idx == 0:
-        sample_p = self.forward(x, 1 - labels, self.tau)
+        if optimizer_idx == 0:
+            sample_p = self.forward(x, 1 - labels, self.tau)
 
-        s_logits = self.classifier(sample_p)
-        c_logits = self.matcher(sample_p, x)
-        dn_logits = self.denoiser(sample_p, 1 - labels)
+            s_logits = self.classifier(sample_p)
+            c_logits = self.matcher(sample_p, x)
 
-        # self.disc.eval()
-        # adv_logits = self.disc(sample_p, 1 - labels)
+            self.disc.eval()
+            adv_logits = self.disc(sample_p, 1 - labels)
 
-        bk_logits = self.generator(sample_p.argmax(-1), x, labels)
+            # bk_logits = self.generator(sample_p.argmax(-1), x, labels)
 
-        s_loss = self.ce_crit(s_logits, 1 - labels)
-        c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
-        # G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
-        # dn_loss = self.ce_crit(dn_logits.reshape(-1, dn_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
-        dn_loss = self.soft_ce(dn_logits, sample_p)
+            s_loss = self.ce_crit(s_logits, 1 - labels)
+            c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
+            G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
 
-        bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
+            # bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
-        loss = self.wdn * dn_loss + self.wc * c_loss + self.ws * s_loss + bk_loss
-        loginfo = {"NT": dn_loss, "STI": s_loss, "CP": c_loss, "BK": bk_loss}
-        return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
+            loss = G_loss + self.wc * c_loss + self.ws * s_loss# + bk_loss
+            loginfo = {"G": G_loss, "STI": s_loss, "CP": c_loss}
+            return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
         
-        # if optimizer_idx == 1:
-        #     self.disc.train()
-        #     t_logits = self.disc(F.one_hot(x, len(self.vocab)).float(), labels)
-        #     with torch.no_grad():
-        #         x_ = self.forward(x, 1 - labels, tau)
-        #     f_logits = self.disc(x_, 1 - labels)
+        if optimizer_idx == 1:
+            self.disc.train()
+            t_logits = self.disc(F.one_hot(x, len(self.vocab)).float(), labels)
+            with torch.no_grad():
+                x_ = self.forward(x, 1 - labels, self.tau)
+            f_logits = self.disc(x_, 1 - labels)
 
-        #     D_loss = 0.5 * (self.bce_crit(t_logits, self.adv_label(t_logits, 1)) + \
-        #         self.bce_crit(f_logits, self.adv_label(f_logits, 0)))
-        #     return {"loss": D_loss, "progress_bar": {"D": D_loss}, "log": {"D": D_loss}}
+            D_loss = 0.5 * (self.bce_crit(t_logits, self.adv_label(t_logits, 1)) + \
+                self.bce_crit(f_logits, self.adv_label(f_logits, 0)))
+            return {"loss": D_loss, "progress_bar": {"D": D_loss}, "log": {"D": D_loss}}
 
 
     def validation_step(self, batch, batch_idx):
@@ -127,18 +121,10 @@ class GenerationTuner(pl.LightningModule):
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x) 
         dn_logits = self.denoiser(sample_p, 1 - labels)
-        # G_logits = self.disc(sample_p, 1 - labels)
-
-        # t_logits = self.disc(F.one_hot(x, len(self.vocab)).float(), labels)
-        # f_logits = self.disc(sample_p, 1 - labels)
 
         s_loss = self.ce_crit(s_logits, 1 - labels)
         c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
-        # G_loss = self.bce_crit(G_logits, self.adv_label(G_logits, 1))
-        # D_loss = 0.5 * (self.bce_crit(t_logits, self.adv_label(t_logits, 1)) + \
-            # self.bce_crit(f_logits, self.adv_label(f_logits, 0)))
-        # dn_loss = self.ce_crit(dn_logits.reshape(-1, dn_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
-        dn_loss = self.soft_ce(dn_logits, sample_p)
+        dn_loss = self.ce_crit(dn_logits.reshape(-1, dn_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
 
         return {"loss": (dn_loss + s_loss + c_loss).item()}
         
@@ -200,13 +186,13 @@ def construct_trainer(args):
                                version=args.restore_version)
     checkpoint = ModelCheckpoint(filepath=args.task_dump_dir,
                                  save_weights_only=True,
-                                 save_top_k=1,
+                                 save_top_k=3,
                                  verbose=0,
                                  monitor='val_loss',
                                  mode='min',
                                  prefix=STAGE)
     early_stop = EarlyStopping(monitor="val_loss",
-                               patience=3,
+                               patience=args.epochs,
                                mode="min")
     trainer = Trainer(logger=logger,
                       early_stop_callback=early_stop,
