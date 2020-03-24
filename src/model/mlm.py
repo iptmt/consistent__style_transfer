@@ -24,7 +24,7 @@ class MLM(nn.Module):
         self.fwd = nn.Linear(d_model, n_vocab)
     
     # tensor: (B, L, *), label: (B,)
-    def embedding(self, tensor, label):
+    def embedding(self, tensor):
         if len(tensor.shape) == 2:
             E_t = self.token_embedding(tensor)
         elif len(tensor.shape) == 3:
@@ -37,8 +37,8 @@ class MLM(nn.Module):
         E_s = 0.
         return E_t + E_p + E_s
 
-    def forward(self, inputs, label):
-        x = self.embedding(inputs, label)
+    def forward(self, inputs):
+        x = self.embedding(inputs)
 
         x = self.lm(x.transpose(0, 1)).transpose(0, 1)
 
