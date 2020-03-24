@@ -89,7 +89,7 @@ class GenerationTuner(pl.LightningModule):
             self.disc.eval()
             adv_logits = self.disc(sample_p, 1 - labels)
 
-            bk_logits = self.generator(sample_p.argmax(-1), x, labels)
+            bk_logits = self.generator(sample_p.argmax(-1), 1 - labels, x, labels)
 
             s_loss = self.ce_crit(s_logits, 1 - labels)
             c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
