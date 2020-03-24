@@ -18,6 +18,8 @@ class DenoiseLSTM(nn.Module):
         super().__init__()
         self.start_embedding = nn.Embedding(1, d_embed)
         self.token_embedding = nn.Embedding(n_vocab, d_embed)
+
+        self.enc_style_embedding = nn.Embedding(n_class, 2 * d_enc)
         self.style_embedding = nn.Embedding(n_class, d_dec)
 
         self.encoder = nn.LSTM(
@@ -47,16 +49,17 @@ class DenoiseLSTM(nn.Module):
         c = a_norm.bmm(v) # b * 1 * H
         return c
     
-    def forward(self, nx, x, label, res_type="none", tau=1.0):
+    def forward(self, inp, label_i, x, label, res_type="none", tau=1.0):
         # encode
-        nx = self.dropout(self.token_embedding(nx))
-        memory, (h_end, _) = self.encoder(nx)
+        h_0 = self.enc_style_embedding(label_i).reshape(-1, 2, d_enc).transpose(0, 1)
+        inp = self.dropout(self.token_embedding(inp))
+        memory, (_, c_end) = self.encoder(inp, (h_0, h_0.new_zeros(h_0.shape)))
 
         # decode
         max_len = self.max_len if x is None else x.size(1)
 
-        x_t = self.start_embedding(nx.new_full((nx.size(0), 1), 0).long()) # B * 1 * d_emb
-        c_t = self.relu(self.transfer(h_end.transpose(0, 1).reshape(1, nx.size(0), -1))) # 1 * B * d_dec
+        x_t = self.start_embedding(inp.new_full((inp.size(0), 1), 0).long()) # B * 1 * d_emb
+        c_t = self.relu(self.transfer(c_end.transpose(0, 1).reshape(1, inp.size(0), -1))) # 1 * B * d_dec
         h_t = self.style_embedding(label).unsqueeze(0) # 1 * B * d_dec
 
         logits = []
@@ -89,7 +92,7 @@ if __name__ == "__main__":
     nx = torch.randint(0, 9999, (64, 15))
     x = torch.randint(0, 9999, (64, 20))
     label = torch.randint(0, 1, (64,))
-    output_0 = model(nx, x, label, res_type="gumbel", tau=0.1)
-    output_1 = model(nx, None, label, res_type="softmax", tau=0.01)
+    output_0 = model(nx, 1-label, x, label, res_type="gumbel", tau=0.1)
+    output_1 = model(nx, 1-label, None, label, res_type="softmax", tau=0.01)
     print(output_0.shape)
     print(output_1.shape)

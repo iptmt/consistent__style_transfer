@@ -53,8 +53,8 @@ class GenerationTuner(pl.LightningModule):
 
         self.ws, self.wc = args.w_s, args.w_c
     
-    def forward(self, x, labels, tau):
-        sample_p = self.generator(x, None, labels, res_type="gumbel", tau=tau)
+    def forward(self, x, src_labels, tgt_labels, tau):
+        sample_p = self.generator(x, src_labels, None, tgt_labels, res_type="softmax", tau=tau)
         return sample_p
  
     def configure_optimizers(self):
@@ -81,7 +81,7 @@ class GenerationTuner(pl.LightningModule):
         x, labels = batch
 
         if optimizer_idx == 0:
-            sample_p = self.forward(x, 1 - labels, self.tau)
+            sample_p = self.forward(x, labels, 1 - labels, self.tau)
 
             s_logits = self.classifier(sample_p)
             c_logits = self.matcher(sample_p, x)
@@ -109,7 +109,7 @@ class GenerationTuner(pl.LightningModule):
             self.disc.train()
             t_logits = self.disc(F.one_hot(x, len(self.vocab)).float(), labels)
             with torch.no_grad():
-                x_ = self.forward(x, 1 - labels, self.tau)
+                x_ = self.forward(x, labels, 1 - labels, self.tau)
             f_logits = self.disc(x_, 1 - labels)
 
             D_loss = 0.5 * (self.bce_crit(t_logits, self.adv_label(t_logits, 1)) + \
@@ -120,7 +120,7 @@ class GenerationTuner(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, labels = batch
 
-        sample_p = self.forward(x, 1 - labels, self.tau)
+        sample_p = self.forward(x, labels, 1 - labels, self.tau)
 
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x) 
@@ -142,7 +142,7 @@ class GenerationTuner(pl.LightningModule):
     
     def test_step(self, batch, batch_idx):
         x, labels = batch
-        logits = self.generator(x, None, 1 - labels)
+        logits = self.generator(x, labels, None, 1 - labels)
         return {
             "ori": x.cpu().numpy().tolist(),
             "tsf": logits.argmax(-1).cpu().numpy().tolist(),
