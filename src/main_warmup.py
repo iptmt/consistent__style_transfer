@@ -111,13 +111,13 @@ if __name__ == "__main__":
 
     if args.dataset == "yelp":
         args.epochs = 1
-        args.batch_size = 256
+        args.batch_size = 512
     elif args.dataset == "shen":
         args.epochs = 1
-        args.batch_size = 256
+        args.batch_size = 512
     elif args.dataset == "book":
         args.epochs = 1
-        args.batch_size = 128
+        args.batch_size = 256
     else:
         raise ValueError
 
