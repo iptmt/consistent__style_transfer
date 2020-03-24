@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
-from pytorch_lightning.logging import TensorBoardLogger
+from pytorch_lightning.logging import TestTubeLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 from model.mlm import MLM
@@ -181,9 +181,10 @@ class GenerationTuner(pl.LightningModule):
         return data_loader
 
 def construct_trainer(args):
-    logger = TensorBoardLogger(save_dir=args.log_dir,
-                               name=f"{STAGE}-{args.ver}",
-                               version=args.restore_version)
+    logger = TestTubeLogger(save_dir=args.log_dir,
+                            name=f"{STAGE}-{args.ver}",
+                            debug=False if args.mode=="train" else True,
+                            version=args.restore_version)
     checkpoint = ModelCheckpoint(filepath=args.task_dump_dir,
                                  save_weights_only=True,
                                  save_top_k=1,
