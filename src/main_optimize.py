@@ -61,7 +61,7 @@ class GenerationTuner(pl.LightningModule):
  
         self.tau = args.tau
 
-        self.ws, self.wc = args.w_s, args.w_c
+        self.ws, self.wc, self.wg = args.w_s, args.w_c, args.w_adv
 
         self.best_eval = float("inf")
         self.last_save = None
@@ -102,19 +102,21 @@ class GenerationTuner(pl.LightningModule):
             self.disc.eval()
             adv_logits = self.disc(sample_p, 1 - labels)
 
-            bk_logits = self.generator(sample_p.argmax(-1), 1 - labels, x, labels)
-
             s_loss = self.ce_crit(s_logits, 1 - labels)
             c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
             G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
 
-            bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
+            if not self.hparams.wo_bt:
+                bk_logits = self.generator(sample_p.argmax(-1), 1 - labels, x, labels)
+                bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
+            else:
+                bk_loss = 0.
 
             with torch.no_grad():
                 nt_logits = self.denoiser(sample_p.argmax(-1))
                 nt_loss = self.ce_crit(nt_logits.reshape(-1, nt_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
 
-            loss = G_loss + self.wc * c_loss + self.ws * s_loss + bk_loss
+            loss = self.wg * G_loss + self.wc * c_loss + self.ws * s_loss + bk_loss
             loginfo = {"G": G_loss, "STI": s_loss, "CP": c_loss, "BK": bk_loss, "NT": nt_loss}
             return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
         
@@ -127,7 +129,7 @@ class GenerationTuner(pl.LightningModule):
 
             D_loss = 0.5 * (self.bce_crit(t_logits, self.adv_label(t_logits, 1)) + \
                 self.bce_crit(f_logits, self.adv_label(f_logits, 0)))
-            return {"loss": D_loss, "progress_bar": {"D": D_loss}, "log": {"D": D_loss}}
+            return {"loss": self.wg * D_loss, "progress_bar": {"D": D_loss}, "log": {"D": D_loss}}
 
 
     def validation_step(self, batch, batch_idx):
