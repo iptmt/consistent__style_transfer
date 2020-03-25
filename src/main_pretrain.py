@@ -51,7 +51,7 @@ class PretrainModel(pl.LightningModule):
         c_logits = self.matcher(noise_x_1, noise_x_2) if self.flags["mat"] else None
 
         # denoising
-        dn_logits = self.denoiser(noise_x, label) if self.flags["dn"] else None
+        dn_logits = self.denoiser(noise_x) if self.flags["dn"] else None
 
         return s_logits, c_logits, dn_logits
     
