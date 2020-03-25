@@ -151,7 +151,7 @@ class GenerationTuner(pl.LightningModule):
         if val_loss < self.best_eval:
             self.best_eval = val_loss
             torch.save(self.generator.state_dict(), f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth")
-            if self.last_save is not None:
+            if self.last_save is not None and os.path.exists(self.last_save):
                 os.remove(self.last_save)
             self.last_save = f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth"
         return {
