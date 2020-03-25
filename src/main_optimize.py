@@ -41,7 +41,17 @@ class GenerationTuner(pl.LightningModule):
         self.classifier.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/cls.pth"))
         self.matcher.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/mat.pth"))
         self.denoiser.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/dn.pth"))
-        self.generator.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/warmup/G.pth"))
+
+        if args.mode == "train":
+            self.generator.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/warmup/G.pth"))
+        elif args.mode == "test":
+            files = os.listdir(args.task_dump_dir)
+            if len(files) > 0:
+                files.sort()
+                pretrained_G = f"{args.task_dump_dir}/{files[-1]}"
+                self.generator.load_state_dict(torch.load(pretrained_G))
+            else:
+                self.generator.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/warmup/G.pth"))
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
@@ -52,6 +62,9 @@ class GenerationTuner(pl.LightningModule):
         self.tau = args.tau
 
         self.ws, self.wc = args.w_s, args.w_c
+
+        self.best_eval = float("inf")
+        self.last_save = None
     
     def forward(self, x, src_labels, tgt_labels, tau):
         sample_p = self.generator(x, src_labels, None, tgt_labels, res_type="softmax", tau=tau)
@@ -135,6 +148,12 @@ class GenerationTuner(pl.LightningModule):
  
     def validation_end(self, outputs):
         val_loss = sum([output["loss"] for output in outputs]) / len(outputs)
+        if val_loss < self.best_eval:
+            self.best_eval = val_loss
+            torch.save(self.generator.state_dict(), f"{self.hparams.task_dump_dir}/G_eopch_{self.current_epoch}.pth")
+            if self.last_save is not None:
+                os.remove(self.last_save)
+            self.last_save = f"{self.hparams.task_dump_dir}/G_eopch_{self.current_epoch}.pth"
         return {
             "progress_bar": {"val_loss": val_loss},
             "log": {"val_loss": val_loss}
@@ -189,26 +208,26 @@ def construct_trainer(args):
                             name=f"{STAGE}-{args.ver}",
                             debug=False if args.mode=="train" else True,
                             version=args.restore_version)
-    checkpoint = ModelCheckpoint(filepath=args.task_dump_dir,
-                                 save_weights_only=True,
-                                 save_top_k=1,
-                                 verbose=0,
-                                 monitor='val_loss',
-                                 mode='min',
-                                 prefix=STAGE)
-    early_stop = EarlyStopping(monitor="val_loss",
-                               patience=args.epochs,
-                               mode="min")
+    # checkpoint = ModelCheckpoint(filepath=args.task_dump_dir,
+    #                              save_weights_only=True,
+    #                              save_top_k=1,
+    #                              verbose=0,
+    #                              monitor='val_loss',
+    #                              mode='min',
+    #                              prefix=STAGE)
+    # early_stop = EarlyStopping(monitor="val_loss",
+    #                            patience=args.epochs,
+    #                            mode="min")
     trainer = Trainer(logger=logger,
-                      early_stop_callback=early_stop,
+                      early_stop_callback=False,
                       gradient_clip_val=1.0,
-                      checkpoint_callback=checkpoint,
+                      checkpoint_callback=False,
                       max_epochs=args.epochs,
                       gpus=args.device)
     return trainer
 
 
-def main():
+if __name__ == "__main__":
     from arguments import fetch_args
     args = fetch_args()
 
@@ -250,15 +269,11 @@ def main():
             args.test_file = transfer_file
             # special parameter
             model = GenerationTuner(args)
-
-            dirs = os.listdir(args.task_dump_dir)
-            if len(dirs) > 0:
-                dirs.sort()
-                args.tsf_dump_dir = f"{args.task_dump_dir}/{dirs[-1]}"
-                pretrain_model = GenerationTuner.load_from_checkpoint(args.tsf_dump_dir)
-                model.load_state_dict(pretrain_model.state_dict())
+            # dirs = os.listdir(args.task_dump_dir)
+            # if len(dirs) > 0:
+            #     dirs.sort()
+            #     args.tsf_dump_dir = f"{args.task_dump_dir}/{dirs[-1]}"
+            #     pretrain_model = GenerationTuner.load_from_checkpoint(args.tsf_dump_dir)
+            #     model.load_state_dict(pretrain_model.state_dict())
             trainer = construct_trainer(args)
             trainer.test(model)
-
-if __name__ == "__main__":
-    main()
