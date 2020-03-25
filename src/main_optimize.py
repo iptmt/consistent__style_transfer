@@ -150,10 +150,10 @@ class GenerationTuner(pl.LightningModule):
         val_loss = sum([output["loss"] for output in outputs]) / len(outputs)
         if val_loss < self.best_eval:
             self.best_eval = val_loss
-            torch.save(self.generator.state_dict(), f"{self.hparams.task_dump_dir}/G_eopch_{self.current_epoch}.pth")
+            torch.save(self.generator.state_dict(), f"{self.hparams.task_dump_dir}/G_epoch{self.current_epoch}.pth")
             if self.last_save is not None:
                 os.remove(self.last_save)
-            self.last_save = f"{self.hparams.task_dump_dir}/G_eopch_{self.current_epoch}.pth"
+            self.last_save = f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth"
         return {
             "progress_bar": {"val_loss": val_loss},
             "log": {"val_loss": val_loss}
