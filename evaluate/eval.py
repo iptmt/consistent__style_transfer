@@ -47,5 +47,5 @@ adv_classifier = UnigramBasedClassifier(f"{eval_dir}/eval_dump/adv_models/unigra
 input_scores = adv_classifier.score(origin)
 output_scores = adv_classifier.score(transfer)
 judgments = generate_judgments(input_scores, output_scores)
-relative_judgments, nt_score = aggerate_judgments(judgments)
+nt_score = aggerate_judgments(judgments)
 print("NT (higher is better): %.4f" % nt_score)

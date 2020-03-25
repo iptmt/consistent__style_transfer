@@ -79,19 +79,22 @@ def generate_judgments(input_text_scores, output_text_scores):
     return judgments
 
 def aggerate_judgments(judgments):
-    relative_judgments = {"Success": 0, "Fail": 0, "Equal": 0}
+    # relative_judgments = {"Success": 0, "Fail": 0}
+    success = 0
     for judgment in judgments:
-        if judgment is None:
-            relative_judgments["Equal"] += 1
-        elif judgment == 0:
-            relative_judgments["Success"] += 1
-        elif judgment == 1:
-            relative_judgments["Fail"] += 1
-        else:
-            print(judgment)
-            raise ValueError
-    score = (relative_judgments["Success"] - relative_judgments["Fail"]) / len(judgments)
-    return relative_judgments, score
+        if judgment is None or judgment == 0:
+            # relative_judgments["Success"] += 1
+            success += 1
+        # elif judgment == 0:
+        #     relative_judgments["Success"] += 1
+        # elif judgment == 1:
+        #     relative_judgments["Fail"] += 1
+        # else:
+        #     print(judgment)
+        #     raise ValueError
+    # score = (relative_judgments["Success"] - relative_judgments["Fail"]) / len(judgments)
+    # return relative_judgments, score
+    return success / len(judgments)
 
 # def format_relative_judgments(judgments):
 #     judgments_map = {'A': 1, 'B': 0, None: None}

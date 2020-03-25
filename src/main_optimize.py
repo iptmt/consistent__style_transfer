@@ -205,7 +205,7 @@ def construct_trainer(args):
                       checkpoint_callback=checkpoint,
                       max_epochs=args.epochs,
                       gpus=args.device)
-    return trainer        
+    return trainer
 
 
 def main():
