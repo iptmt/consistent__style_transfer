@@ -145,18 +145,6 @@ if __name__ == "__main__":
     from arguments import fetch_args
     args = fetch_args()
 
-    if args.dataset == "yelp":
-        args.batch_size = 256
-        args.epochs = 10
-    elif args.dataset == "shen":
-        args.batch_size = 256
-        args.epochs = 10
-    elif args.dataset == "book":
-        args.batch_size = 128
-        args.epochs = 10
-    else:
-        raise ValueError
-
     if not os.path.exists(f"{args.dump_dir}/{args.dataset}/{STAGE}"):
         os.mkdir(f"{args.dump_dir}/{args.dataset}/{STAGE}")
     args.task_dump_dir = f"{args.dump_dir}/{args.dataset}/{STAGE}"
