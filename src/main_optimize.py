@@ -217,11 +217,11 @@ def construct_trainer(args):
     #                              monitor='val_loss',
     #                              mode='min',
     #                              prefix=STAGE)
-    # early_stop = EarlyStopping(monitor="val_loss",
-    #                            patience=args.epochs,
-    #                            mode="min")
+    early_stop = EarlyStopping(monitor="val_loss",
+                               patience=3,
+                               mode="min")
     trainer = Trainer(logger=logger,
-                      early_stop_callback=False,
+                      early_stop_callback=early_stop,
                       gradient_clip_val=1.0,
                       checkpoint_callback=False,
                       max_epochs=args.epochs,
