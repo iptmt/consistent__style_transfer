@@ -52,7 +52,7 @@ class DenoiseLSTM(nn.Module):
     def forward(self, inp, label_i, x, label, res_type="none", tau=1.0):
         # encode
         h_0 = self.enc_style_embedding(label_i).reshape(-1, 2, d_enc).transpose(0, 1).contiguous()
-        np = self.dropout(self.token_embedding(inp))
+        inp = self.dropout(self.token_embedding(inp))
         memory, (_, c_end) = self.encoder(inp, (h_0, h_0.new_zeros(h_0.shape)))
 
         # decode
