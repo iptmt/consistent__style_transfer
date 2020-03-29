@@ -108,7 +108,7 @@ class GenerationTuner(pl.LightningModule):
             G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
 
             if not self.hparams.wo_bt:
-                bk_logits = self.generator(sample_p, 1 - labels, x, labels)
+                bk_logits = self.generator(sample_p.argmax(-1), 1 - labels, x, labels)
                 bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
             else:
                 bk_loss = 0.
