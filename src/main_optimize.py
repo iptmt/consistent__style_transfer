@@ -43,8 +43,7 @@ class GenerationTuner(pl.LightningModule):
         self.denoiser.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/dn.pth"))
 
         if args.mode == "train":
-            # self.generator.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/warmup/G.pth"))
-            pass
+            self.generator.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/warmup/G.pth"))
         elif args.mode == "test":
             files = os.listdir(args.task_dump_dir)
             if len(files) > 0:
