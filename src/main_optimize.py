@@ -112,9 +112,10 @@ class GenerationTuner(pl.LightningModule):
             else:
                 bk_loss = 0.
 
-            with torch.no_grad():
-                nt_logits = self.denoiser(sample_p.argmax(-1))
-                nt_loss = self.ce_crit(nt_logits.reshape(-1, nt_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
+            # with torch.no_grad():
+            #     nt_logits = self.denoiser(sample_p.argmax(-1))
+            #     nt_loss = self.ce_crit(nt_logits.reshape(-1, nt_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
+            nt_loss = 0.
 
             loss = self.wg * G_loss + self.wc * c_loss + self.ws * s_loss + bk_loss
             loginfo = {"G": G_loss, "STI": s_loss, "CP": c_loss, "BK": bk_loss, "NT": nt_loss}
