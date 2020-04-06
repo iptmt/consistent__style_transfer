@@ -140,11 +140,12 @@ class GenerationTuner(pl.LightningModule):
 
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x) 
-        dn_logits = self.denoiser(sample_p)
+        # dn_logits = self.denoiser(sample_p)
 
         s_loss = self.ce_crit(s_logits, 1 - labels)
         c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
-        dn_loss = self.ce_crit(dn_logits.reshape(-1, dn_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
+        # dn_loss = self.ce_crit(dn_logits.reshape(-1, dn_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
+        dn_loss = 0.
 
         return {"loss": (dn_loss + s_loss + c_loss).item()}
         
