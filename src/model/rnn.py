@@ -49,6 +49,9 @@ class DenoiseLSTM(nn.Module):
         c = a_norm.bmm(v) # b * 1 * H
         return c
     
+    def hard_sample(self, logits):
+        return F.one_hot(logits, logits.size(-1)).float() - logits.detach() + logits
+    
     def forward(self, inp, label_i, x, label, res_type="none", tau=1.0):
         # encode
         h_0 = self.enc_style_embedding(label_i).reshape(-1, 2, d_enc).transpose(0, 1).contiguous()
@@ -75,9 +78,11 @@ class DenoiseLSTM(nn.Module):
 
             if res_type == "softmax":
                 logits_t = F.softmax(logits_t / tau, dim=-1)
+                logits_t = self.hard_sample(logits_t)
                 x_t = logits_t.matmul(self.token_embedding.weight)
             elif res_type == "gumbel":
                 logits_t = F.gumbel_softmax(logits_t, tau=tau, hard=False)
+                logits_t = self.hard_sample(logits_t)
                 x_t = logits_t.matmul(self.token_embedding.weight)
             else:
                 if x is None or random.random() < 1/2:
