@@ -50,7 +50,7 @@ class DenoiseLSTM(nn.Module):
         return c
     
     def hard_sample(self, logits):
-        return F.one_hot(logits, logits.size(-1)).float() - logits.detach() + logits
+        return F.one_hot(logits.argmax(-1), logits.size(-1)).float() - logits.detach() + logits
     
     def forward(self, inp, label_i, x, label, res_type="none", tau=1.0):
         # encode
