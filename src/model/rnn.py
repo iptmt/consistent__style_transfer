@@ -78,12 +78,12 @@ class DenoiseLSTM(nn.Module):
 
             if res_type == "softmax":
                 logits_t = F.softmax(logits_t / tau, dim=-1)
-                logits_t = self.hard_sample(logits_t)
-                x_t = logits_t.matmul(self.token_embedding.weight)
+                logits_t_ = self.hard_sample(logits_t)
+                x_t = logits_t_.matmul(self.token_embedding.weight)
             elif res_type == "gumbel":
                 logits_t = F.gumbel_softmax(logits_t, tau=tau, hard=False)
-                logits_t = self.hard_sample(logits_t)
-                x_t = logits_t.matmul(self.token_embedding.weight)
+                logits_t_ = self.hard_sample(logits_t)
+                x_t = logits_t_.matmul(self.token_embedding.weight)
             else:
                 if x is None or random.random() < 1/2:
                     x_t = logits_t.argmax(-1)
