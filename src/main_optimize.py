@@ -137,7 +137,7 @@ class GenerationTuner(pl.LightningModule):
         c_logits = self.matcher(sample_p, x) 
 
         t_logits = self.disc(F.one_hot(x, len(self.vocab)).float(), labels)
-        f_logits = self.disc(sample_p.argmax(-1), 1 - labels)
+        f_logits = self.disc(sample_p, 1 - labels)
 
         s_loss = self.ce_crit(s_logits, 1 - labels)
         c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
