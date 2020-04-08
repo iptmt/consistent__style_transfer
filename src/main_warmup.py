@@ -26,7 +26,6 @@ class WarmupModel(pl.LightningModule):
         self.vocab = BPETokenizer.load(f"{args.dump_dir}/{args.dataset}/{args.dataset}-vocab.json",
                                        f"{args.dump_dir}/{args.dataset}/{args.dataset}-merges.txt")
 
-        # self.generator = MLM(len(self.vocab), args.n_class)
         self.generator = DenoiseLSTM(len(self.vocab), args.n_class, args.max_len)
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
@@ -46,12 +45,11 @@ class WarmupModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         nx, x, labels = batch
         dn_logits = self.forward(nx, labels, x, labels)
-        # with torch.no_grad():
-        #     tokens_tsf = self.forward(x, labels, None, 1 - labels).argmax(-1)
-        # bk_logits = self.forward(tokens_tsf, 1 - labels, x, labels)
+        with torch.no_grad():
+            tokens_tsf = self.forward(x, labels, None, 1 - labels).argmax(-1)
+        bk_logits = self.forward(tokens_tsf, 1 - labels, x, labels)
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
-        # bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
-        bk_loss = 0.
+        bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
         loginfo = {"dn_loss": dn_loss, "bk_loss": bk_loss}
         return {"loss": dn_loss + bk_loss, "progress_bar": loginfo, "log": loginfo}
@@ -59,13 +57,13 @@ class WarmupModel(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         nx, x, labels = batch
         dn_logits = self.forward(nx, labels, x, labels)
-        # with torch.no_grad():
-        #     tokens_tsf = self.forward(x, labels, None, 1 - labels).argmax(-1)
-        # bk_logits = self.forward(tokens_tsf, 1 - labels, x, labels)
+        with torch.no_grad():
+            tokens_tsf = self.forward(x, labels, None, 1 - labels).argmax(-1)
+        bk_logits = self.forward(tokens_tsf, 1 - labels, x, labels)
 
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
-        # bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
-        return {"loss": dn_loss.item()}
+        bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
+        return {"loss": dn_loss.item() + bk_loss.item()}
     
     def validation_end(self, outputs):
         losses = np.array([o["loss"] for o in outputs])
