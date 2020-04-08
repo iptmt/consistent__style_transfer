@@ -112,11 +112,6 @@ class GenerationTuner(pl.LightningModule):
             else:
                 bk_loss = 0.
 
-            # with torch.no_grad():
-            #     nt_logits = self.denoiser(sample_p.argmax(-1))
-            #     nt_loss = self.ce_crit(nt_logits.reshape(-1, nt_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
-            # nt_loss = 0.
-
             loss = self.wg * G_loss + self.wc * c_loss + self.ws * s_loss + bk_loss
             loginfo = {"G": G_loss, "STI": s_loss, "CP": c_loss, "BK": bk_loss}
             return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
@@ -140,13 +135,16 @@ class GenerationTuner(pl.LightningModule):
 
         s_logits = self.classifier(sample_p)
         c_logits = self.matcher(sample_p, x) 
-        dn_logits = self.denoiser(sample_p)
+
+        t_logits = self.disc(F.one_hot(x, len(self.vocab)).float(), labels)
+        f_logits = self.disc(sample_p.argmax(-1), 1 - labels)
 
         s_loss = self.ce_crit(s_logits, 1 - labels)
         c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
-        dn_loss = self.ce_crit(dn_logits.reshape(-1, dn_logits.size(-1)), sample_p.argmax(-1).reshape(-1))
+        D_loss = 0.5 * (self.bce_crit(t_logits, self.adv_label(t_logits, 1)) + \
+            self.bce_crit(f_logits, self.adv_label(f_logits, 0)))
 
-        return {"loss": (dn_loss + s_loss + c_loss).item()}
+        return {"loss": (D_loss + s_loss + c_loss).item()}
         
  
     def validation_end(self, outputs):
