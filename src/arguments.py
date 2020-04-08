@@ -23,7 +23,7 @@ def fetch_args():
 
     parser.add_argument('--w_s', type=float, default=0.1, help="weight of STI")
     parser.add_argument('--w_c', type=float, default=0.5, help="weight of CP")
-    parser.add_argument('--w_adv', type=float, default=1.0, help="weight of adversarial loss")
+    parser.add_argument('--w_adv', type=float, default=0.5, help="weight of adversarial loss")
     parser.add_argument('--w_bt', type=float, default=1.0, help="without back-trans")
 
     parser.add_argument('--tau', type=float, default=0.05, help="annealling temperature")
