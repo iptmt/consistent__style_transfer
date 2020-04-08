@@ -58,7 +58,7 @@ class DenoiseLSTM(nn.Module):
         if len(inp.shape) == 2:
             inp = self.dropout(self.token_embedding(inp))
         else:
-            inp = inp.matmul(self.token_embedding.weight)
+            inp = self.hard_sample(inp).matmul(self.token_embedding.weight)
         memory, (_, c_end) = self.encoder(inp, (h_0, h_0.new_zeros(h_0.shape)))
 
         # decode

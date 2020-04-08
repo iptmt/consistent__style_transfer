@@ -94,6 +94,8 @@ class GenerationTuner(pl.LightningModule):
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
 
+        w = min([1.0, self.global_step / 5000])
+
         if optimizer_idx == 0:
             sample_p = self.forward(x, labels, 1 - labels, self.tau)
 
@@ -113,7 +115,7 @@ class GenerationTuner(pl.LightningModule):
             else:
                 bk_loss = 0.
 
-            loss = self.wg * G_loss + self.wc * c_loss + self.ws * s_loss + bk_loss
+            loss = bk_loss + self.wc * c_loss + w * (self.wg * G_loss + self.ws * s_loss)
             loginfo = {"G": G_loss, "STI": s_loss, "CP": c_loss, "BK": bk_loss}
             return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
         
