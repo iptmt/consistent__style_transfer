@@ -101,16 +101,12 @@ class GenerationTuner(pl.LightningModule):
 
             self.disc.eval()
             adv_logits = self.disc(sample_p)
+            bk_logits = self.generator(sample_p.argmax(-1), 1 - labels, x, labels)
 
             s_loss = self.ce_crit(s_logits, 1 - labels)
             c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
             G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
-
-            if not self.hparams.wo_bt:
-                bk_logits = self.generator(sample_p.argmax(-1), 1 - labels, x, labels)
-                bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
-            else:
-                bk_loss = 0.
+            bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
             loss = self.w_bt * bk_loss + self.wc * c_loss + self.w_adv * G_loss + self.ws * s_loss
             loginfo = {"G": G_loss, "STI": s_loss, "CP": c_loss, "BK": bk_loss}
