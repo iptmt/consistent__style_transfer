@@ -33,14 +33,14 @@ class GenerationTuner(pl.LightningModule):
         # construct new models
         self.classifier = TextCNN(len(self.vocab), n_class=args.n_class)
         self.matcher = Matcher(len(self.vocab))
-        # self.denoiser = MLM(len(self.vocab), args.n_class)
+        self.nt_checker= MLM(len(self.vocab), args.n_class)
         self.disc = RelGAN_D(len(self.vocab))
         self.generator = DenoiseLSTM(len(self.vocab), args.n_class, args.max_len)
  
         # reload pretrained models
         self.classifier.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/cls.pth"))
         self.matcher.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/mat.pth"))
-        # self.denoiser.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/dn.pth"))
+        self.nt_checker.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/pretrain/dn.pth"))
 
         if args.mode == "train":
             self.generator.load_state_dict(torch.load(f"{args.dump_dir}/{args.dataset}/warmup/G.pth"))
@@ -72,7 +72,7 @@ class GenerationTuner(pl.LightningModule):
  
     def configure_optimizers(self):
         optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-5)
-        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=2e-5)
+        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=1e-5)
         return optimizer_gen, optimizer_adv
     
     def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, 
@@ -128,29 +128,27 @@ class GenerationTuner(pl.LightningModule):
         x, labels = batch
 
         sample_p = self.forward(x, labels, 1 - labels, self.tau)
+        tokens = sample_p.argmax(-1)
 
-        s_logits = self.classifier(sample_p)
-        c_logits = self.matcher(sample_p, x) 
-
-        t_logits = self.disc(F.one_hot(x, len(self.vocab)).float())
-        f_logits = self.disc(sample_p)
+        s_logits = self.classifier(tokens)
+        c_logits = self.matcher(tokens, x) 
+        nt_logits = self.nt_checker(tokens)
 
         s_loss = self.ce_crit(s_logits, 1 - labels)
         c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
-        D_loss = 0.5 * (self.bce_crit(t_logits, self.adv_label(t_logits, 1)) + \
-            self.bce_crit(f_logits, self.adv_label(f_logits, 0)))
+        nt_loss = self.nt_checker(nt_logits.reshape(-1, nt_logits.size(-1)), x.reshape(-1))
 
-        return {"loss": (D_loss + s_loss + c_loss).item()}
+        return {"loss": (nt_loss + s_loss + c_loss).item()}
         
  
     def validation_end(self, outputs):
         val_loss = sum([output["loss"] for output in outputs]) / len(outputs)
         if val_loss < self.best_eval:
             self.best_eval = val_loss
-        torch.save(self.generator.state_dict(), f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth")
-            # if self.last_save is not None and os.path.exists(self.last_save):
-            #     os.remove(self.last_save)
-            # self.last_save = f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth"
+            torch.save(self.generator.state_dict(), f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth")
+            if self.last_save is not None and os.path.exists(self.last_save):
+                os.remove(self.last_save)
+            self.last_save = f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth"
         return {
             "progress_bar": {"val_loss": val_loss},
             "log": {"val_loss": val_loss}

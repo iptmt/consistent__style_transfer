@@ -44,7 +44,6 @@ class WarmupModel(pl.LightningModule):
     
     def training_step(self, batch, batch_idx):
         nx, x, labels = batch
-        w = 1.0 - min([1.0, self.global_step / 870])
         dn_logits = self.forward(nx, labels, x, labels)
         with torch.no_grad():
             tokens_tsf = self.forward(x, labels, None, 1 - labels).argmax(-1)
@@ -53,7 +52,7 @@ class WarmupModel(pl.LightningModule):
         bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
         loginfo = {"dn_loss": dn_loss, "bk_loss": bk_loss}
-        return {"loss": w * dn_loss + bk_loss, "progress_bar": loginfo, "log": loginfo}
+        return {"loss": dn_loss + bk_loss, "progress_bar": loginfo, "log": loginfo}
     
     def validation_step(self, batch, batch_idx):
         nx, x, labels = batch
