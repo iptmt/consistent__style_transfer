@@ -11,7 +11,6 @@ from pytorch_lightning.logging import TestTubeLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 from model.mlm import MLM
-# from model.gru import DenoiseGRU
 from model.rnn import DenoiseLSTM
 from model.classifier import TextCNN
 from model.match import Matcher
@@ -71,8 +70,8 @@ class GenerationTuner(pl.LightningModule):
         return sample_p
  
     def configure_optimizers(self):
-        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=3e-5)
-        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=3e-5)
+        optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-5)
+        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=1e-5)
         return optimizer_gen, optimizer_adv
     
     def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, 
@@ -81,9 +80,9 @@ class GenerationTuner(pl.LightningModule):
             optimizer.step()
             optimizer.zero_grad()
 
-        # update discriminator opt every 5 steps
+        # update discriminator opt every 4 steps
         if optimizer_idx == 1:
-            if batch_idx % 5 == 0 :
+            if batch_idx % 3 == 0 :
                 optimizer.step()
                 optimizer.zero_grad()
     
