@@ -29,7 +29,7 @@ def fetch_args():
     parser.add_argument('--tau', type=float, default=0.05, help="annealling temperature")
     parser.add_argument('--gap', type=float, default=0.0, help="annealling temperature")
 
-    parser.add_argument('--epochs', type=int, default=20, help="max epochs")
+    parser.add_argument('--epochs', type=int, default=10, help="max epochs")
 
     parser.add_argument('--device', type=str, default="0", help="device id")
     parser.add_argument('--restore_version', type=int, default=-1, help="version for restore trainer and it's state")
