@@ -84,14 +84,14 @@ if model_name and not os.path.exists(f"{eval_dir}/eval_dump/adv_models/unigram_l
     print("\n<-TRAINING ADVESARIAL CLASSIFIER->")
     ## aggregate true/fake sentences
     tsf_sents, ori_sents = [], []
-    for name in os.listdir(out_dir):
-        if "train" in name:
-            tsf_sents += load_dataset(out_dir + name)
-    save_lines(tsf_sents, f"{eval_dir}/eval_tmp/{dataset}-{model_name}.train.tsf")
-    for name in os.listdir(data_dir):
-        if "train" in name:
-            ori_sents += load_dataset(data_dir+ name)
-    save_lines(ori_sents, f"{eval_dir}/eval_tmp/{dataset}.train.ori")
+    # for name in os.listdir(out_dir):
+    #     if "train" in name:
+    #         tsf_sents += load_dataset(out_dir + name)
+    # save_lines(tsf_sents, f"{eval_dir}/eval_tmp/{dataset}-{model_name}.train.tsf")
+    # for name in os.listdir(data_dir):
+    #     if "train" in name:
+    #         ori_sents += load_dataset(data_dir+ name)
+    # save_lines(ori_sents, f"{eval_dir}/eval_tmp/{dataset}-{model_name}.train.ori")
 
     vectorizer = load_model(f"{eval_dir}/eval_dump/vectorizer_{dataset}.bin")
     lr_model = get_unigram_lr_model(f"{eval_dir}/eval_tmp/{dataset}-{model_name}.train.tsf", f"{eval_dir}/eval_tmp/{dataset}.train.ori", vectorizer)
