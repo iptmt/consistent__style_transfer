@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 
 import torch
@@ -39,11 +40,15 @@ class WarmupModel(pl.LightningModule):
         return dn_logits
     
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.generator.parameters(), lr=1e-3)
+        optimizer = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
         return optimizer
     
     def training_step(self, batch, batch_idx):
         nx, x, labels = batch
+        w = self.global_step / 5000
+        if self.global_step >= 5000:
+            torch.save(self.generator.state_dict(), f"{self.hparams.task_dump_dir}/G.pth")
+            sys.exit()
         dn_logits = self.forward(nx, labels, x, labels)
         with torch.no_grad():
             tokens_tsf = self.forward(x, labels, None, 1 - labels).argmax(-1)
@@ -51,8 +56,8 @@ class WarmupModel(pl.LightningModule):
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
         bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
-        loginfo = {"dn_loss": dn_loss, "bk_loss": bk_loss}
-        return {"loss": dn_loss + bk_loss, "progress_bar": loginfo, "log": loginfo}
+        loginfo = {"dn_loss": dn_loss, "bk_loss": bk_loss, "w": w}
+        return {"loss": (1 - w) * dn_loss + bk_loss, "progress_bar": loginfo, "log": loginfo}
     
     def validation_step(self, batch, batch_idx):
         nx, x, labels = batch
@@ -92,13 +97,13 @@ class WarmupModel(pl.LightningModule):
 def construct_trainer(args):
     logger = TensorBoardLogger(save_dir=args.log_dir,
                                name=STAGE)
-    early_stop = EarlyStopping(monitor="val_loss",
-                               patience=1,
-                               mode="min")
+    # early_stop = EarlyStopping(monitor="val_loss",
+    #                            patience=1,
+    #                            mode="min")
     trainer = Trainer(logger=logger,
                       gradient_clip_val=1.0,
                       checkpoint_callback=False,
-                      early_stop_callback=early_stop,
+                      early_stop_callback=False,
                       max_epochs=args.epochs,
                       gpus=args.device)
     return trainer
@@ -109,10 +114,10 @@ if __name__ == "__main__":
     args = fetch_args()
 
     if args.dataset == "yelp":
-        args.epochs = 1
+        args.epochs = 20
         args.batch_size = 512
     elif args.dataset == "book":
-        args.epochs = 1
+        args.epochs = 20
         args.batch_size = 512
     else:
         raise ValueError
