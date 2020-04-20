@@ -94,7 +94,7 @@ if model_name and not os.path.exists(f"{eval_dir}/eval_dump/adv_models/unigram_l
     # save_lines(ori_sents, f"{eval_dir}/eval_tmp/{dataset}-{model_name}.train.ori")
 
     vectorizer = load_model(f"{eval_dir}/eval_dump/vectorizer_{dataset}.bin")
-    lr_model = get_unigram_lr_model(f"{eval_dir}/eval_tmp/{dataset}-{model_name}.train.tsf", f"{eval_dir}/eval_tmp/{dataset}.train.ori", vectorizer)
+    lr_model = get_unigram_lr_model(f"{eval_dir}/eval_tmp/{dataset}-{model_name}.train.tsf", f"{eval_dir}/eval_tmp/{dataset}-{model_name}.train.ori", vectorizer)
     save_model(lr_model, f"{eval_dir}/eval_dump/adv_models/unigram_lr_{model_name}_{dataset}.bin")
 
 time_cost = time.time() - start_time
