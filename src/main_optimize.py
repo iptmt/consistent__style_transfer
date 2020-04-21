@@ -92,7 +92,7 @@ class GenerationTuner(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
-        w = self.global_step / self.max_iter
+        w = 1 - self.global_step / self.max_iter
 
         if optimizer_idx == 0:
             sample_p = self.forward(x, labels, 1 - labels, self.tau)
