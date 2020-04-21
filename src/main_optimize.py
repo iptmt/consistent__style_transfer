@@ -144,10 +144,10 @@ class GenerationTuner(pl.LightningModule):
         val_loss = sum([output["loss"] for output in outputs]) / len(outputs)
         if val_loss < self.best_eval:
             self.best_eval = val_loss
-            torch.save(self.generator.state_dict(), f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth")
-            if self.last_save is not None and os.path.exists(self.last_save):
-                os.remove(self.last_save)
-            self.last_save = f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth"
+        torch.save(self.generator.state_dict(), f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth")
+        if self.last_save is not None and os.path.exists(self.last_save):
+            os.remove(self.last_save)
+        self.last_save = f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth"
         return {
             "progress_bar": {"val_loss": val_loss},
             "log": {"val_loss": val_loss}
@@ -209,11 +209,11 @@ def construct_trainer(args):
     #                              monitor='val_loss',
     #                              mode='min',
     #                              prefix=STAGE)
-    early_stop = EarlyStopping(monitor="val_loss",
-                               patience=5,
-                               mode="min")
+    # early_stop = EarlyStopping(monitor="val_loss",
+    #                            patience=5,
+    #                            mode="min")
     trainer = Trainer(logger=logger,
-                      early_stop_callback=early_stop,
+                      early_stop_callback=False,
                       gradient_clip_val=1.0,
                       checkpoint_callback=False,
                       max_epochs=args.epochs,
