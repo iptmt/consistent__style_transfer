@@ -64,7 +64,6 @@ class GenerationTuner(pl.LightningModule):
 
         self.best_eval = float("inf")
         self.last_save = None
-        self.max_iter = None
     
     def forward(self, x, src_labels, tgt_labels, tau):
         sample_p = self.generator(x, src_labels, None, tgt_labels, res_type="softmax", tau=tau)
@@ -81,7 +80,7 @@ class GenerationTuner(pl.LightningModule):
             optimizer.step()
             optimizer.zero_grad()
 
-        # update discriminator opt every 4 steps
+        # update discriminator opt every 3 steps
         if optimizer_idx == 1:
             if batch_idx % 3 == 0 :
                 optimizer.step()
@@ -92,7 +91,6 @@ class GenerationTuner(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
-        w = 1 - self.global_step / self.max_iter
 
         if optimizer_idx == 0:
             sample_p = self.forward(x, labels, 1 - labels, self.tau)
@@ -109,8 +107,8 @@ class GenerationTuner(pl.LightningModule):
             G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
             bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
-            loss = w * self.w_bt * bk_loss + self.wc * c_loss + self.w_adv * G_loss + self.ws * s_loss
-            loginfo = {"G": G_loss, "STI": s_loss, "CP": c_loss, "BK": bk_loss, "w": w}
+            loss = self.w_bt * bk_loss + self.wc * c_loss + self.w_adv * G_loss + self.ws * s_loss
+            loginfo = {"G": G_loss, "STI": s_loss, "CP": c_loss, "BK": bk_loss}
             return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
         
         if optimizer_idx == 1:
@@ -146,10 +144,10 @@ class GenerationTuner(pl.LightningModule):
         val_loss = sum([output["loss"] for output in outputs]) / len(outputs)
         if val_loss < self.best_eval:
             self.best_eval = val_loss
-        torch.save(self.generator.state_dict(), f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth")
-        if self.last_save is not None and os.path.exists(self.last_save):
-            os.remove(self.last_save)
-        self.last_save = f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth"
+            torch.save(self.generator.state_dict(), f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth")
+            if self.last_save is not None and os.path.exists(self.last_save):
+                os.remove(self.last_save)
+            self.last_save = f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth"
         return {
             "progress_bar": {"val_loss": val_loss},
             "log": {"val_loss": val_loss}
@@ -180,8 +178,6 @@ class GenerationTuner(pl.LightningModule):
                                 max_len=self.hparams.max_len, load_func=load_s2l)
         data_loader = DataLoader(dataset, batch_size=self.hparams.batch_size, shuffle=True, 
                                  collate_fn=collate_optimize)
-        self.max_iter = len(data_loader) * self.hparams.epochs
-        print(f"max iterations = {self.max_iter}")
         return data_loader
     
     @pl.data_loader
@@ -213,11 +209,11 @@ def construct_trainer(args):
     #                              monitor='val_loss',
     #                              mode='min',
     #                              prefix=STAGE)
-    # early_stop = EarlyStopping(monitor="val_loss",
-    #                            patience=5,
-    #                            mode="min")
+    early_stop = EarlyStopping(monitor="val_loss",
+                               patience=5,
+                               mode="min")
     trainer = Trainer(logger=logger,
-                      early_stop_callback=False,
+                      early_stop_callback=early_stop,
                       gradient_clip_val=1.0,
                       checkpoint_callback=False,
                       max_epochs=args.epochs,
