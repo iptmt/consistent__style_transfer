@@ -33,6 +33,7 @@ class WarmupModel(pl.LightningModule):
         self.criterion = nn.CrossEntropyLoss()
 
         self.best_eval = float("inf")
+        self.max_iter = -1
  
     def forward(self, nx, n_labels, x, labels):
         dn_logits = self.generator(nx, n_labels, x, labels)
@@ -44,16 +45,17 @@ class WarmupModel(pl.LightningModule):
     
     def training_step(self, batch, batch_idx):
         nx, x, labels = batch
+        w = 1 - self.global_step / self.max_iter
+
         dn_logits = self.forward(nx, labels, x, labels)
-        # with torch.no_grad():
-        #     tokens_tsf = self.forward(x, labels, None, 1 - labels).argmax(-1)
-        # bk_logits = self.forward(tokens_tsf, 1 - labels, x, labels)
+        with torch.no_grad():
+            tokens_tsf = self.forward(x, labels, None, 1 - labels).argmax(-1)
+        bk_logits = self.forward(tokens_tsf, 1 - labels, x, labels)
         dn_loss = self.criterion(dn_logits.reshape(-1, dn_logits.size(-1)), x.reshape(-1))
-        # bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
-        bk_loss = 0
+        bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
         loginfo = {"dn_loss": dn_loss, "bk_loss": bk_loss}
-        return {"loss": dn_loss + bk_loss, "progress_bar": loginfo, "log": loginfo}
+        return {"loss": w * dn_loss + bk_loss, "progress_bar": loginfo, "log": loginfo}
     
     def validation_step(self, batch, batch_idx):
         nx, x, labels = batch
@@ -80,6 +82,7 @@ class WarmupModel(pl.LightningModule):
                                 max_len=self.hparams.max_len, load_func=load_s2l)
         data_loader = DataLoader(dataset, batch_size=self.hparams.batch_size, shuffle=True, 
                                  collate_fn=collate_warmup)
+        self.max_iter = len(data_loader) * self.hparams.epochs
         return data_loader
     
     @pl.data_loader
