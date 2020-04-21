@@ -64,6 +64,7 @@ class GenerationTuner(pl.LightningModule):
 
         self.best_eval = float("inf")
         self.last_save = None
+        self.max_iter = None
     
     def forward(self, x, src_labels, tgt_labels, tau):
         sample_p = self.generator(x, src_labels, None, tgt_labels, res_type="softmax", tau=tau)
@@ -91,6 +92,7 @@ class GenerationTuner(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
+        w = self.global_step / self.max_iter
 
         if optimizer_idx == 0:
             sample_p = self.forward(x, labels, 1 - labels, self.tau)
@@ -107,8 +109,8 @@ class GenerationTuner(pl.LightningModule):
             G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
             bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
-            loss = self.w_bt * bk_loss + self.wc * c_loss + self.w_adv * G_loss + self.ws * s_loss
-            loginfo = {"G": G_loss, "STI": s_loss, "CP": c_loss, "BK": bk_loss}
+            loss = w * self.w_bt * bk_loss + self.wc * c_loss + self.w_adv * G_loss + self.ws * s_loss
+            loginfo = {"G": G_loss, "STI": s_loss, "CP": c_loss, "BK": bk_loss, "w": w}
             return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
         
         if optimizer_idx == 1:
@@ -178,6 +180,8 @@ class GenerationTuner(pl.LightningModule):
                                 max_len=self.hparams.max_len, load_func=load_s2l)
         data_loader = DataLoader(dataset, batch_size=self.hparams.batch_size, shuffle=True, 
                                  collate_fn=collate_optimize)
+        self.max_iter = len(data_loader) * self.hparams.epochs
+        print(f"max iterations = {self.max_iter}")
         return data_loader
     
     @pl.data_loader
