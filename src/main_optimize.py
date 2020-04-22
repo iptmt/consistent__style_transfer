@@ -80,9 +80,9 @@ class GenerationTuner(pl.LightningModule):
             optimizer.step()
             optimizer.zero_grad()
 
-        # update discriminator opt every 3 steps
+        # update discriminator opt every 4 steps
         if optimizer_idx == 1:
-            if batch_idx % 3 == 0 :
+            if batch_idx % 4 == 0 :
                 optimizer.step()
                 optimizer.zero_grad()
     
@@ -144,10 +144,10 @@ class GenerationTuner(pl.LightningModule):
         val_loss = sum([output["loss"] for output in outputs]) / len(outputs)
         if val_loss < self.best_eval:
             self.best_eval = val_loss
-            torch.save(self.generator.state_dict(), f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth")
-            if self.last_save is not None and os.path.exists(self.last_save):
-                os.remove(self.last_save)
-            self.last_save = f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth"
+        torch.save(self.generator.state_dict(), f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth")
+        if self.last_save is not None and os.path.exists(self.last_save):
+            os.remove(self.last_save)
+        self.last_save = f"{self.hparams.task_dump_dir}/G_epoch_{self.current_epoch}.pth"
         return {
             "progress_bar": {"val_loss": val_loss},
             "log": {"val_loss": val_loss}
