@@ -1,5 +1,6 @@
 import sys 
 sys.path.append("../..")
+sys.path.append("../../evaluate")
 
 import random
 from evaluate.auto.style_lexicon import load_lexicon
