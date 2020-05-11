@@ -88,7 +88,7 @@ class GenerationTuner(pl.LightningModule):
     
     def adv_label(self, logits, value):
         return logits.new_full(logits.shape, value)
-
+    
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, labels = batch
 
@@ -103,12 +103,12 @@ class GenerationTuner(pl.LightningModule):
             bk_logits = self.generator(sample_p.argmax(-1), 1 - labels, x, labels)
 
             s_loss = self.ce_crit(s_logits, 1 - labels)
-            c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
+            c_loss = self.mse_crit(c_logits.mean(), c_logits.new_full([c_logits.size(0)], self.hparams.gap))
             G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
             bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
             loss = self.w_bt * bk_loss + self.wc * c_loss + self.w_adv * G_loss + self.ws * s_loss
-            loginfo = {"G": G_loss, "STI": s_loss, "CP": c_loss, "BK": bk_loss}
+            loginfo = {"G": G_loss, "STI": s_loss, "CP": c_logits.mean(), "BK": bk_loss}
             return {"loss": loss, "progress_bar": loginfo, "log": loginfo}
         
         if optimizer_idx == 1:
@@ -134,10 +134,10 @@ class GenerationTuner(pl.LightningModule):
         nt_logits = self.nt_checker(tokens)
 
         s_loss = self.ce_crit(s_logits, 1 - labels)
-        c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
+        # c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
         nt_loss = self.ce_crit(nt_logits.reshape(-1, nt_logits.size(-1)), tokens.reshape(-1))
 
-        return {"loss": (nt_loss + s_loss + c_loss).item()}
+        return {"loss": (nt_loss + s_loss + c_logits.mean()).item()}
         
  
     def validation_end(self, outputs):
