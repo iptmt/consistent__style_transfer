@@ -71,7 +71,7 @@ class GenerationTuner(pl.LightningModule):
  
     def configure_optimizers(self):
         optimizer_gen = torch.optim.Adam(self.generator.parameters(), lr=1e-5)
-        optimizer_adv = torch.optim.Adam(self.disc.parameters(), lr=1e-5)
+        optimizer_adv = torch.optim.SGD(self.disc.parameters(), lr=1e-4)
         return optimizer_gen, optimizer_adv
     
     def optimizer_step(self, current_epoch, batch_idx, optimizer, optimizer_idx, 
@@ -82,7 +82,7 @@ class GenerationTuner(pl.LightningModule):
 
         # update discriminator opt every 4 steps
         if optimizer_idx == 1:
-            if batch_idx % 4 == 0 :
+            if batch_idx % 1 == 0 :
                 optimizer.step()
                 optimizer.zero_grad()
     
@@ -103,8 +103,8 @@ class GenerationTuner(pl.LightningModule):
             bk_logits = self.generator(sample_p.argmax(-1), 1 - labels, x, labels)
 
             s_loss = self.ce_crit(s_logits, 1 - labels)
-            # c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
-            c_loss = self.mse_crit(c_logits.mean().unsqueeze(0), c_logits.new_full([1], self.hparams.gap))
+            c_loss = self.mse_crit(c_logits, c_logits.new_full([c_logits.size(0)], self.hparams.gap))
+            # c_loss = self.mse_crit(c_logits.mean().unsqueeze(0), c_logits.new_full([1], self.hparams.gap))
             G_loss = self.bce_crit(adv_logits, self.adv_label(adv_logits, 1))
             bk_loss = self.ce_crit(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
 
