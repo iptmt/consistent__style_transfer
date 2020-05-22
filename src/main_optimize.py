@@ -80,9 +80,9 @@ class GenerationTuner(pl.LightningModule):
             optimizer.step()
             optimizer.zero_grad()
 
-        # update discriminator opt every 4 steps
+        # update discriminator opt every 3 steps
         if optimizer_idx == 1:
-            if batch_idx % 4 == 0 :
+            if batch_idx % 3 == 0 :
                 optimizer.step()
                 optimizer.zero_grad()
     

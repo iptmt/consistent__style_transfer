@@ -26,7 +26,7 @@ def fetch_args():
     parser.add_argument('--w_adv', type=float, default=1.0, help="weight of adversarial loss")
     parser.add_argument('--w_bt', type=float, default=1.0, help="without back-trans")
 
-    parser.add_argument('--tau', type=float, default=0.05, help="annealling temperature")
+    parser.add_argument('--tau', type=float, default=0.01, help="annealling temperature")
     parser.add_argument('--gap', type=float, default=0.0, help="annealling temperature")
 
     parser.add_argument('--epochs', type=int, default=10, help="max epochs")
