@@ -11,8 +11,8 @@ def write(lines, file):
             f.write(line + "\n")
 
 
-topic = "yelp"
-out_dir = "~/"
+topic = "book"
+out_dir = "/home/zaracs/"
 in_dir = f"../../data/{topic}/"
 
 file_names = os.listdir(in_dir)
