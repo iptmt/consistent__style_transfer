@@ -33,15 +33,15 @@ class WarmupModel(pl.LightningModule):
         self.criterion = nn.CrossEntropyLoss()
 
         self.best_eval = float("inf")
- 
+
     def forward(self, nx, n_labels, x, labels):
         dn_logits = self.generator(nx, n_labels, x, labels)
         return dn_logits
-    
+
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.generator.parameters(), lr=1e-4)
         return optimizer
-    
+
     def training_step(self, batch, batch_idx):
         nx, x, labels = batch
 
@@ -56,7 +56,7 @@ class WarmupModel(pl.LightningModule):
         # return {"loss": dn_loss + bk_loss, "progress_bar": loginfo, "log": loginfo}
         loginfo = {"dn_loss": dn_loss}
         return {"loss": dn_loss, "progress_bar": loginfo, "log": loginfo}
-    
+
     def validation_step(self, batch, batch_idx):
         nx, x, labels = batch
         dn_logits = self.forward(nx, labels, x, labels)
@@ -68,7 +68,7 @@ class WarmupModel(pl.LightningModule):
         # bk_loss = self.criterion(bk_logits.reshape(-1, bk_logits.size(-1)), x.reshape(-1))
         # return {"loss": dn_loss.item() + bk_loss.item()}
         return {"loss": dn_loss.item()}
-    
+
     def validation_end(self, outputs):
         losses = np.array([o["loss"] for o in outputs])
         loss = losses.mean()
@@ -76,23 +76,23 @@ class WarmupModel(pl.LightningModule):
             self.best_eval = loss
             torch.save(self.generator.state_dict(), f"{self.hparams.task_dump_dir}/G.pth")
         return {"progress_bar": {"loss": loss}, "log": {"val_loss": loss}}
-    
+
     @pl.data_loader
     def train_dataloader(self):
-        dataset = StyleDataset([f"{self.data_dir}/style.train.0", f"{self.data_dir}/style.train.1"], self.vocab, 
+        dataset = StyleDataset([f"{self.data_dir}/style.train.0", f"{self.data_dir}/style.train.1"], self.vocab,
                                 max_len=self.hparams.max_len, load_func=load_s2l)
-        data_loader = DataLoader(dataset, batch_size=self.hparams.batch_size, shuffle=True, 
+        data_loader = DataLoader(dataset, batch_size=self.hparams.batch_size, shuffle=True,
                                  collate_fn=collate_warmup)
         return data_loader
-    
+
     @pl.data_loader
     def val_dataloader(self):
-        dataset = StyleDataset([f"{self.data_dir}/style.dev.0", f"{self.data_dir}/style.dev.1"], self.vocab, 
+        dataset = StyleDataset([f"{self.data_dir}/style.dev.0", f"{self.data_dir}/style.dev.1"], self.vocab,
                                 max_len=self.hparams.max_len, load_func=load_s2l)
-        data_loader = DataLoader(dataset, batch_size=self.hparams.batch_size, shuffle=False, 
+        data_loader = DataLoader(dataset, batch_size=self.hparams.batch_size, shuffle=False,
                                  collate_fn=collate_warmup)
         return data_loader
-    
+
 def construct_trainer(args):
     logger = TensorBoardLogger(save_dir=args.log_dir,
                                name=STAGE)
@@ -113,10 +113,10 @@ if __name__ == "__main__":
     args = fetch_args()
 
     if args.dataset == "yelp":
-        args.epochs = 1
+        args.epochs = 3
         args.batch_size = 512
     elif args.dataset == "book":
-        args.epochs = 1
+        args.epochs = 3
         args.batch_size = 512
     else:
         raise ValueError
