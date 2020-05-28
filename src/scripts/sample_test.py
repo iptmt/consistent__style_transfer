@@ -77,12 +77,25 @@ with open('yelp.csv', 'w', newline='') as csvfile:
         ori_mask = yelp_mask_pairs[ori]
         for idx_, (s, sm) in enumerate(system_pairs):
             content = {
-                "id": idx + 1, 
+                "id": idx + 1 if idx_ == 0 else "", 
                 "origin": ori + "\n" + ori_mask if idx_ == 0 else "",
                 "transfer": s + "\n" + sm,
                 "STI": "", "CP": "", "NT": "" 
             }
+            writer.writerow(content)
 
-
-# with open('amazon.csv', 'w', newline='') as csvfile:
-#     writer = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+with open('amazon.csv', 'w', newline='') as csvfile:
+    fields = ["id", "origin", "transfer", "STI", "CP", "NT"]
+    writer = csv.DictWriter(csvfile, fieldnames=fields)
+    writer.writeheader()
+    for idx, ori in enumerate(book_pairs):
+        system_pairs = book_pairs[ori]
+        ori_mask = book_mask_pairs[ori]
+        for idx_, (s, sm) in enumerate(system_pairs):
+            content = {
+                "id": idx + 1 if idx_ == 0 else "", 
+                "origin": ori + "\n" + ori_mask if idx_ == 0 else "",
+                "transfer": s + "\n" + sm,
+                "STI": "", "CP": "", "NT": "" 
+            }
+            writer.writerow(content)
