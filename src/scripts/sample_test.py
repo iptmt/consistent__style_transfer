@@ -2,6 +2,7 @@ import sys
 sys.path.append("../..")
 sys.path.append("../../evaluate")
 
+import csv
 import random
 from collections import defaultdict
 from evaluate.auto.style_lexicon import load_lexicon
@@ -46,6 +47,8 @@ yelp_lex = load_lexicon("../../evaluate/eval_dump/lexicon_yelp.json")
 book_lex = load_lexicon("../../evaluate/eval_dump/lexicon_book.json")
 yelp_mask = mask_style_words(yelp_indexes, yelp_lex)
 book_mask = mask_style_words(book_indexes, book_lex)
+yelp_mask_pairs = dict(list(zip(yelp_indexes, yelp_mask)))
+book_mask_pairs = dict(list(zip(book_indexes, book_mask)))
 yelp_pairs, book_pairs = defaultdict(list),defaultdict(list) 
 for m in models:
     dic_m = dict()
@@ -63,4 +66,23 @@ for m in models:
     book_pairs_m = list(zip(book_indexes, list(zip(book_res, book_res_mask))))
     for book_ori, book_out in book_pairs_m:
         book_pairs[book_ori].append(book_out)
-    
+
+# 写入csv文件
+with open('yelp.csv', 'w', newline='') as csvfile:
+    fields = ["id", "origin", "transfer", "STI", "CP", "NT"]
+    writer = csv.DictWriter(csvfile, fieldnames=fields)
+    writer.writeheader()
+    for idx, ori in enumerate(yelp_pairs):
+        system_pairs = yelp_pairs[ori]
+        ori_mask = yelp_mask_pairs[ori]
+        for idx_, (s, sm) in enumerate(system_pairs):
+            content = {
+                "id": idx + 1, 
+                "origin": ori + "\n" + ori_mask if idx_ == 0 else "",
+                "transfer": s + "\n" + sm,
+                "STI": "", "CP": "", "NT": "" 
+            }
+
+
+# with open('amazon.csv', 'w', newline='') as csvfile:
+#     writer = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
