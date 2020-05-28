@@ -3,12 +3,13 @@ sys.path.append("../..")
 sys.path.append("../../evaluate")
 
 import random
+from collections import defaultdict
 from evaluate.auto.style_lexicon import load_lexicon
 from evaluate.auto.content_preserve import mask_style_words
 
 
 topics = ["yelp", "book"]
-models = ["caae", "drg", "unmt", "full"]
+models = ["drg", "unmt", "full"]
 
 files = ["style.test.0", "style.test.1"]
 
@@ -45,7 +46,7 @@ yelp_lex = load_lexicon("../../evaluate/eval_dump/lexicon_yelp.json")
 book_lex = load_lexicon("../../evaluate/eval_dump/lexicon_book.json")
 yelp_mask = mask_style_words(yelp_indexes, yelp_lex)
 book_mask = mask_style_words(book_indexes, book_lex)
-sys_pairs = {}
+yelp_pairs, book_pairs = defaultdict(list),defaultdict(list) 
 for m in models:
     dic_m = dict()
     for k in pairs:
@@ -53,13 +54,13 @@ for m in models:
             dic_m.update(pairs[k])
     yelp_res = [dic_m[idx] for idx in yelp_indexes]
     yelp_res_mask = mask_style_words(yelp_res, yelp_lex)
+    yelp_paris_m = list(zip(yelp_indexes, list(zip(yelp_res, yelp_res_mask))))
+    for yelp_ori, yelp_out in yelp_paris_m:
+        yelp_pairs[yelp_ori].append(yelp_out)
+
     book_res = [dic_m[idx] for idx in book_indexes]
     book_res_mask = mask_style_words(book_res, book_lex)
+    book_pairs_m = list(zip(book_indexes, list(zip(book_res, book_res_mask))))
+    for book_ori, book_out in book_pairs_m:
+        book_pairs[book_ori].append(book_out)
     
-    # merge
-    indexes = yelp_indexes + book_indexes
-    res = yelp_res + book_res
-
-    mask_indexes = yelp_mask + book_mask
-    mask_res = yelp_res_mask + book_res_mask
-
