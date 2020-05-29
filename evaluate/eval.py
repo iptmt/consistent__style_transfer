@@ -38,7 +38,8 @@ lexicon = load_lexicon(f"{eval_dir}/eval_dump/lexicon_{dataset}.json")
 w2v = load_word2vec_model(f"{eval_dir}/eval_dump/mask_w2v_{dataset}.bin")
 masked_origin = mask_style_words(origin, lexicon)
 masked_transfer = mask_style_words(transfer, lexicon)
-wmd_scores = calculate_wmd_scores(masked_origin, masked_transfer, w2v)
+# wmd_scores = calculate_wmd_scores(masked_origin, masked_transfer, w2v)
+wmd_scores = calculate_wmd_scores(masked_transfer, masked_origin, w2v)
 print("CP (lower is better): %.4f" % mean(wmd_scores))
 
 # calculate NT
