@@ -30,9 +30,11 @@ class PretrainModel(pl.LightningModule):
                                        f"{args.dump_dir}/{args.dataset}/{args.dataset}-merges.txt")
 
         self.classifier = TextCNN(len(self.vocab), n_class=args.n_class)
+        self.classifier.load_state_dict(torch.load(self.hparams.task_dump_dir + "cls.pth"))
         self.matcher = Matcher(len(self.vocab))
         self.matcher.load_state_dict(torch.load(self.hparams.task_dump_dir + "mat.pth"))
         self.denoiser = MLM(len(self.vocab), n_class=args.n_class)
+        self.denoiser.load_state_dict(torch.load(self.hparams.task_dump_dir + "dn.pth"))
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
 
