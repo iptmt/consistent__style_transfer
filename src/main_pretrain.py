@@ -31,6 +31,7 @@ class PretrainModel(pl.LightningModule):
 
         self.classifier = TextCNN(len(self.vocab), n_class=args.n_class)
         self.matcher = Matcher(len(self.vocab))
+        self.matcher.load_state_dict(torch.load(self.hparams.task_dump_dir + "mat.pth"))
         self.denoiser = MLM(len(self.vocab), n_class=args.n_class)
 
         self.data_dir = f"{args.data_dir}/{args.dataset}"
